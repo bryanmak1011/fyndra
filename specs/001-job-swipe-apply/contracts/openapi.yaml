@@ -1,0 +1,500 @@
+openapi: 3.0.3
+info:
+  title: Swipe2Work API
+  version: 0.3.0-phase1
+  description: >
+    Contract between the iOS client and the local Node/Express/PostgreSQL server (Phase 1),
+    for the Hong Kong and Taiwan markets.
+
+    Revision 0.3.0: career-ops is a design reference only, so the status enum is ours —
+    lower snake_case, with rev-2's `Evaluated`/`SKIP` dropped (they existed only to mirror into
+    career-ops's tracker) and `withdrawn` added. DOCX is accepted again, since the PDF-only
+    limit was career-ops's and not ours. Post-submission status is user-reported via
+    POST /applications/{applicationId}/status.
+
+    Revision 0.2.0 corrected three defects in 0.1.0, all recorded in SDD.md Appendix A:
+    (1) there was no authentication at all; (2) POST /jobs/{id}/swipe returned a submission
+    result synchronously, though a submission takes 30s-2min; (3) the status enum was invented.
+
+    No field in this contract is iOS-specific: the same contract serves an Android client
+    unchanged, per the Migration Controls. Push registration is confined to POST /devices,
+    where the `platform` enum names the push transport (apns/fcm) rather than the client
+    platform — no domain payload carries a platform-shaped field.
+
+    Every path except /auth/* requires a bearer token and returns 401 with an Error body when
+    it is missing, invalid, or expired. There is no refresh endpoint: a client whose token has
+    expired requests a new one-time code. Per-route 401 responses are therefore omitted below.
+servers:
+  - url: http://localhost:3000/v1
+    description: Local Docker (Simulator)
+  - url: '{ngrokTunnelUrl}/v1'
+    description: ngrok tunnel (physical device, DEBUG builds)
+    variables:
+      ngrokTunnelUrl:
+        default: https://example.ngrok-free.app
+
+security:
+  - bearerAuth: []
+
+paths:
+  # ---------------------------------------------------------------- auth
+  /auth/request-code:
+    post:
+      summary: Request a one-time login code by email (FR-026)
+      security: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [email]
+              properties:
+                email: { type: string, format: email }
+      responses:
+        '202': { description: Code sent (response is identical whether or not the account exists) }
+        '429':
+          description: Too many requests
+          content: { application/json: { schema: { $ref: '#/components/schemas/Error' } } }
+
+  /auth/verify:
+    post:
+      summary: Exchange a one-time code for a bearer token
+      security: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [email, code]
+              properties:
+                email: { type: string, format: email }
+                code: { type: string }
+      responses:
+        '200':
+          description: Authenticated
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  token: { type: string }
+                  expiresAt: { type: string, format: date-time }
+                  profile: { $ref: '#/components/schemas/UserProfile' }
+        '401':
+          description: Invalid or expired code
+          content: { application/json: { schema: { $ref: '#/components/schemas/Error' } } }
+
+  /devices:
+    post:
+      summary: Register a push token so the server can notify the user (FR-029)
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [pushToken, platform]
+              properties:
+                pushToken: { type: string }
+                platform: { type: string, enum: [apns, fcm] }
+      responses:
+        '204': { description: Registered }
+
+  # ---------------------------------------------------------------- profile
+  /profile:
+    get:
+      summary: Get the authenticated user's profile
+      responses:
+        '200':
+          description: OK
+          content: { application/json: { schema: { $ref: '#/components/schemas/UserProfile' } } }
+    patch:
+      summary: Correct extracted keywords/YoE, or change settings (FR-003, FR-018, FR-019)
+      requestBody:
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/UserProfileUpdate' }
+      responses:
+        '200':
+          description: Updated profile
+          content: { application/json: { schema: { $ref: '#/components/schemas/UserProfile' } } }
+
+  /profile/cv:
+    post:
+      summary: Upload a CV for parsing (FR-001, FR-002)
+      description: >
+        Text-layer PDF or DOCX. Format validation is **synchronous**: scanned/image-only PDFs and
+        unsupported formats are rejected with 422 at upload, naming which. A file that passes
+        validation returns 202 and is parsed asynchronously; the client learns the result from a
+        push notification or by reading GET /profile/cv when it next appears.
+      requestBody:
+        required: true
+        content:
+          multipart/form-data:
+            schema:
+              type: object
+              properties:
+                file: { type: string, format: binary }
+      responses:
+        '202':
+          description: Validated and accepted; parsing continues asynchronously
+          content: { application/json: { schema: { $ref: '#/components/schemas/CvDocument' } } }
+        '422':
+          description: >
+            Rejected at upload — `unsupported_format`, `no_text_layer` (scanned or photographed
+            PDF; OCR is out of scope for v1), or `password_protected`. The code names which.
+          content: { application/json: { schema: { $ref: '#/components/schemas/Error' } } }
+    get:
+      summary: Get the current CV's parse result for user confirmation (FR-003)
+      responses:
+        '200':
+          description: OK
+          content: { application/json: { schema: { $ref: '#/components/schemas/CvDocument' } } }
+
+  # ---------------------------------------------------------------- feed
+  /jobs/feed:
+    get:
+      summary: Get the next batch of ranked, un-swiped postings (FR-004, FR-004a)
+      description: >
+        Served from already-collected postings in the database. Never triggers a live source
+        search, so the feed cannot be slowed by an external board.
+      parameters:
+        - { name: limit, in: query, schema: { type: integer, default: 20, maximum: 50 } }
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  items:
+                    type: array
+                    items: { $ref: '#/components/schemas/JobPosting' }
+                  exhausted:
+                    type: boolean
+                    description: True when no further matches exist — drives the end-of-feed state, not an error
+
+  /jobs/{jobId}/swipe:
+    post:
+      summary: Record a swipe decision (FR-005, FR-006, FR-007, FR-014, FR-023)
+      parameters:
+        - { name: jobId, in: path, required: true, schema: { type: string, format: uuid } }
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [direction]
+              properties:
+                direction: { type: string, enum: [left, right] }
+      responses:
+        '202':
+          description: >
+            Swipe recorded. For direction=right an Application is created with status `queued`
+            and the attempt runs asynchronously — the client never waits on submission.
+            Idempotent: re-swiping the same job returns the existing interaction.
+          content: { application/json: { schema: { $ref: '#/components/schemas/SwipeResult' } } }
+        '409':
+          description: Daily or per-employer submission cap reached (FR-024)
+          content: { application/json: { schema: { $ref: '#/components/schemas/Error' } } }
+        '410':
+          description: Posting no longer available
+          content: { application/json: { schema: { $ref: '#/components/schemas/Error' } } }
+
+  # ---------------------------------------------------------------- applications
+  /applications:
+    get:
+      summary: List tracked applications with current status (FR-011)
+      parameters:
+        - name: status
+          in: query
+          schema: { type: array, items: { $ref: '#/components/schemas/ApplicationStatus' } }
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                type: array
+                items: { $ref: '#/components/schemas/Application' }
+
+  /applications/{applicationId}:
+    get:
+      summary: Application detail including status history (FR-012)
+      parameters:
+        - { name: applicationId, in: path, required: true, schema: { type: string, format: uuid } }
+      responses:
+        '200':
+          description: OK
+          content: { application/json: { schema: { $ref: '#/components/schemas/ApplicationDetail' } } }
+
+  /applications/{applicationId}/confirm:
+    post:
+      summary: Confirm an application in `awaiting_review`, optionally with edits (FR-008, FR-018)
+      description: >
+        Submits directly when the posting is on the ATS allowlist; otherwise transitions to
+        `handed_off` and returns the employer form URL for the user to complete (FR-025).
+      parameters:
+        - { name: applicationId, in: path, required: true, schema: { type: string, format: uuid } }
+      requestBody:
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                editedAnswers:
+                  type: array
+                  items:
+                    type: object
+                    properties:
+                      fieldId: { type: string }
+                      answer: { type: string }
+      responses:
+        '202':
+          description: Confirmed; submission or handoff proceeds
+          content: { application/json: { schema: { $ref: '#/components/schemas/Application' } } }
+
+  /applications/{applicationId}/status:
+    post:
+      summary: User reports a post-submission status change (FR-011a)
+      description: >
+        Employer responses arrive outside the app, so the user advances the pipeline themselves.
+        Only post-submission states are accepted; pre-submission states are system-owned.
+      parameters:
+        - { name: applicationId, in: path, required: true, schema: { type: string, format: uuid } }
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [status]
+              properties:
+                status:
+                  type: string
+                  enum: [responded, interview, offer, hired, rejected, withdrawn]
+                note: { type: string }
+      responses:
+        '200':
+          description: Recorded
+          content: { application/json: { schema: { $ref: '#/components/schemas/Application' } } }
+        '409':
+          description: Not a legal transition from the application's current status
+          content: { application/json: { schema: { $ref: '#/components/schemas/Error' } } }
+
+  /applications/{applicationId}/handoff-complete:
+    post:
+      summary: User reports they submitted a handed-off application themselves (FR-025)
+      parameters:
+        - { name: applicationId, in: path, required: true, schema: { type: string, format: uuid } }
+      responses:
+        '200':
+          description: Recorded as applied
+          content: { application/json: { schema: { $ref: '#/components/schemas/Application' } } }
+
+  /applications/{applicationId}/questions/{questionId}/answer:
+    post:
+      summary: Answer a pending question (FR-020, FR-021, FR-022)
+      parameters:
+        - { name: applicationId, in: path, required: true, schema: { type: string, format: uuid } }
+        - { name: questionId, in: path, required: true, schema: { type: string, format: uuid } }
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [answer]
+              properties:
+                answer: { type: string }
+                allowReuse:
+                  type: boolean
+                  description: >
+                    Ignored and treated as false when the question is sensitive — sensitive
+                    answers are never reused across applications (FR-022).
+      responses:
+        '202':
+          description: Answer recorded; submission resumes
+          content: { application/json: { schema: { $ref: '#/components/schemas/Application' } } }
+
+components:
+  securitySchemes:
+    bearerAuth:
+      type: http
+      scheme: bearer
+
+  schemas:
+    Market:
+      type: string
+      enum: [HK, TW]
+
+    UserProfile:
+      type: object
+      properties:
+        id: { type: string, format: uuid }
+        email: { type: string, format: email }
+        yoe: { type: integer }
+        keywords: { type: array, items: { type: string } }
+        submissionMode: { type: string, enum: [review_before_sending, auto_submit] }
+        markets: { type: array, items: { $ref: '#/components/schemas/Market' } }
+        preferredLanguage: { type: string, enum: [zh-Hant, en] }
+        dailySubmissionCap: { type: integer }
+        perEmployerCap: { type: integer }
+        submissionsUsedToday: { type: integer, readOnly: true }
+
+    UserProfileUpdate:
+      type: object
+      properties:
+        yoe: { type: integer }
+        keywords: { type: array, items: { type: string } }
+        submissionMode: { type: string, enum: [review_before_sending, auto_submit] }
+        markets: { type: array, items: { $ref: '#/components/schemas/Market' } }
+        preferredLanguage: { type: string, enum: [zh-Hant, en] }
+        dailySubmissionCap: { type: integer }
+        perEmployerCap: { type: integer }
+
+    CvDocument:
+      type: object
+      properties:
+        id: { type: string, format: uuid }
+        fileFormat: { type: string, enum: [pdf, docx] }
+        parseStatus:
+          type: string
+          description: >
+            Only reachable states for a stored document. Format rejections never produce a
+            CvDocument — they are 422s at upload.
+          enum: [parsing, succeeded, failed]
+        detectedLanguage: { type: string, enum: [zh-Hant, en, mixed], nullable: true }
+        rawExtractedKeywords: { type: array, items: { type: string } }
+        rawExtractedYoe: { type: integer, nullable: true }
+
+    JobPosting:
+      type: object
+      properties:
+        id: { type: string, format: uuid }
+        sourceProvider:
+          type: string
+          description: e.g. jobsdb-hk, yourator, tw104, greenhouse
+        employerApplyUrl:
+          type: string
+          nullable: true
+          description: Employer's own application URL; the de-duplication key (FR-016b)
+        title: { type: string }
+        employer: { type: string }
+        requirementsSummary: { type: string }
+        language: { type: string, enum: [zh-Hant, en, mixed] }
+        market: { $ref: '#/components/schemas/Market' }
+        applyRoute:
+          type: string
+          enum: [direct_submit_allowlisted, handoff]
+          description: Whether we can submit this posting directly (FR-009)
+        matchScore:
+          type: number
+          description: >
+            Deterministic pre-rank score for **this** user against this posting (from the
+            per-user FeedEntry), not a property of the posting itself.
+
+    SwipeResult:
+      type: object
+      properties:
+        interactionId: { type: string, format: uuid }
+        direction: { type: string, enum: [left, right] }
+        application:
+          nullable: true
+          allOf: [{ $ref: '#/components/schemas/Application' }]
+
+    ApplicationStatus:
+      type: string
+      description: >
+        Pre-submission states the system owns, then post-submission states the user reports
+        (FR-011a). Shape follows career-ops's states.yml; casing and membership are ours.
+      enum:
+        - queued
+        - awaiting_review
+        - pending_needs_answer
+        - handed_off
+        - needs_attention
+        - applied
+        - responded
+        - interview
+        - offer
+        - hired
+        - rejected
+        - withdrawn
+
+    Application:
+      type: object
+      properties:
+        id: { type: string, format: uuid }
+        jobPostingId: { type: string, format: uuid }
+        submissionMode: { type: string, enum: [review_before_sending, auto_submit] }
+        applyRoute: { type: string, enum: [direct_submit_allowlisted, handoff] }
+        status: { $ref: '#/components/schemas/ApplicationStatus' }
+        failureReason:
+          type: string
+          nullable: true
+          description: >
+            Specific cause — captcha_detected, multi_step_form, site_error, or cap_reached
+            (set when a cap is crossed while the application was already queued; a swipe made
+            when the cap is already spent is refused at /swipe with 409 instead).
+        lastAttemptRef:
+          type: string
+          nullable: true
+          description: Correlation id of the worker job, so a failure is diagnosable
+        employerApplyUrl: { type: string, nullable: true }
+        submittedAt: { type: string, format: date-time, nullable: true }
+        answerSheet:
+          type: array
+          description: Proposed answers for user review (FR-008)
+          items: { $ref: '#/components/schemas/ProposedAnswer' }
+        pendingQuestions:
+          type: array
+          items: { $ref: '#/components/schemas/ApplicationQuestion' }
+
+    ApplicationDetail:
+      allOf:
+        - $ref: '#/components/schemas/Application'
+        - type: object
+          properties:
+            statusHistory:
+              type: array
+              items: { $ref: '#/components/schemas/ApplicationStatusEvent' }
+
+    ProposedAnswer:
+      type: object
+      properties:
+        fieldId: { type: string }
+        label: { type: string }
+        answer: { type: string }
+        source: { type: string, enum: [profile, cv, reused_answer, generated] }
+        editedByUser: { type: boolean }
+
+    ApplicationStatusEvent:
+      type: object
+      properties:
+        status: { $ref: '#/components/schemas/ApplicationStatus' }
+        occurredAt: { type: string, format: date-time }
+        note: { type: string, nullable: true }
+
+    ApplicationQuestion:
+      type: object
+      properties:
+        id: { type: string, format: uuid }
+        questionText: { type: string }
+        isSensitive:
+          type: boolean
+          description: >
+            Work authorization, visa status, identity number, expected salary, or demographics.
+            Never auto-answered, never reused (FR-022). Exposed so the client can explain why
+            it must ask.
+        answer: { type: string, nullable: true }
+
+    Error:
+      type: object
+      properties:
+        code: { type: string }
+        message: { type: string }
