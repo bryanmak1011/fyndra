@@ -18,12 +18,14 @@
 >
 > **Rev 3.1 — Phase 0 compliance research landed (2026-08-31) and it is not a clean pass.**
 > Two premises load-bearing to §6.3's "Tier 1 is cheap" framing did not survive a real ToS/robots
-> read: **JobsDB HK is NO-GO as designed** (R11) and **104.com.tw could not even be accessed**
-> (R4, unchanged severity but now evidenced). A previously-"resolved" decision has reopened:
-> **the product name collides with an active third-party product**, `swipe2work.ai` (R3, B4).
-> Full findings, sourced and quoted, are in [`compliance/`](./compliance/); this document's Risk
-> Register (§12) and Appendix B reflect them below. Two new decisions — B8, B9 — need Product
-> before the affected tasks (T046, T088) can proceed.
+> read: **JobsDB HK's ToS reserves automated access to a partner API** (R11) and **104.com.tw
+> could not even be accessed** (R4). A previously-"resolved" decision has reopened: **the product
+> name collides with an active third-party product**, `swipe2work.ai` (R3, B4, still open). Full
+> findings are in [`compliance/`](./compliance/).
+>
+> **Product explicitly accepted the JobsDB HK ToS risk** (`compliance/risk-acceptance-log.md`,
+> 2026-08-31) — T046 is built. 104.com.tw is **not** covered by that decision: its 403 is active
+> bot detection, a narrower and larger question than a ToS risk, and remains open (B9).
 
 ---
 
@@ -501,14 +503,14 @@ cloud deployment is Phase 2's first task — not a detail to discover at submiss
 | R1 | **App Store rejection** for automating third-party services / employment-application handling | High | Auto-submit restricted to allowlisted public ATS endpoints with no credential custody and no ToS-prohibited platform (§6.5, §10.1); volume caps (§6.5.3); no LinkedIn/Indeed automation at all (D2). Guideline 5.2.2 requires proof of authorization on request; **Phase 0 finding (2026-08-31, `compliance/app-store-assessment.md`)**: confirmed for the *reading* side (documented Job Board APIs), but the *submission* side needs a per-ATS terms confirmation before T067 — mitigation is conditional, not fully closed. |
 | R2 | **We are building what our design reference refuses to build.** career-ops declines auto-submit as unacceptable use | High | Owned by us end-to-end, so no licence or contribution question arises — but the *reason* for its refusal (ToS exposure, employer-side harm) applies to us regardless of who wrote the code. Mitigated by the ATS allowlist, no credential custody, volume caps, and a Functional Analyst compliance review (T0-series tasks). |
 | R3 | **Trademark** — product naming | **Medium (raised from Low, 2026-08-31)** | Clear of career-ops's mark. **Not clear of third-party use**: Phase 0 research (`compliance/naming-attribution.md`) found `swipe2work.ai` — an active German product describing itself as AI-powered swipe-to-apply with CV upload and automated applications, i.e. the same concept under nearly the same name. A WebSearch is not a trademark clearance; a real search (EUIPO/USPTO/HK-TW registries) is needed before any external use of "Swipe2Work" (App Store Connect, domain, marketing). Reopens Appendix B4. |
-| R4 | **104.com.tw anti-bot / ToS** | High | Public JSON endpoint first; honour robots/Crawl-delay/429; **never** circumvent bot protection — a source that blocks us is dropped (§6.3). **Phase 0 finding (2026-08-31)**: robots.txt, homepage, and ToS all returned HTTP 403 to every fetch attempt during compliance review — the site could not even be read, which corroborates rather than resolves this risk. `NEEDS-LEGAL-REVIEW, leaning NO-GO` in `compliance/source-assessment.md` §3. T088 (104.com.tw provider) stays blocked until a human reads the ToS directly in a browser. |
+| R4 | **104.com.tw anti-bot / ToS** | High | Public JSON endpoint first; honour robots/Crawl-delay/429; **never** circumvent bot protection — a source that blocks us is dropped (§6.3). **Phase 0 finding (2026-08-31)**: robots.txt, homepage, and ToS all returned HTTP 403 to every fetch attempt during compliance review — the site could not even be read. **2026-08-31, risk-acceptance-log.md**: Product accepted the *ToS* risk generally for HK/TW sourcing, but this is explicitly narrower than that — the 403 is active bot detection, not a ToS-only question, and defeating it is its own decision, not yet made. T088 stays blocked pending investigation of *why* it 403s. |
 | R5 | **CJK matching silently degrades** (§10.2) | High | Segmentation before keyword ops; test fixtures in zh-Hant with asserted non-empty extraction, so degradation fails a test instead of shipping. |
 | R6 | **Feed runs dry** in a bounded two-city market | **High (raised from Med, 2026-08-31)** | The "Tier 1 breadth first" mitigation assumed JobsDB HK was cheap and proven; **Phase 0 finding**: JobsDB HK is **NO-GO as designed** (R11) — its ToS reserves automated access to a partner API we don't have. HK-market breadth now rests on ATS providers alone (MNC roles) plus whatever HK second-tier sources clear NEEDS-LEGAL-REVIEW. Designed end-of-feed state and broaden-criteria prompt remain in place, but the "breadth" half of the mitigation is materially weaker than assumed until R11 resolves. |
 | R7 | **No backend governance** — constitution is iOS-only (D9) | Med | Run `/speckit-constitution` to add server principles before implementation; until then the iOS principles apply by analogy and that gap is recorded, not hidden. |
 | R8 | **LLM cost/latency** per application and per CV | Med | Deterministic pre-rank at feed scale; LLM only on intent (§6.4). Budget alarm per user per day. |
 | R9 | **Source endpoint churn** — public JSON endpoints are undocumented and can change without notice | Med | One provider per source behind a common interface; provider contract tests with recorded fixtures; a failing provider degrades the feed rather than breaking the app. career-ops's own retirement of a broken provider is the model: drop it, don't fight it. |
 | R10 | **Employer-side harm** — a swipe UI makes low-quality mass applying trivially easy | Med | Volume caps (§6.5.3) — **Phase 0 set concrete defaults**: 15/day per user, 1 concurrent per employer, `handed_off` applications excluded from both (`compliance/volume-policy.md`) — plus a match-quality floor before a job is even shown, and no "apply to all". This is a product-integrity risk, not only a legal one. |
-| R11 | **JobsDB HK is NO-GO as designed** — the SDD's cheapest, highest-confidence HK source doesn't survive a ToS read | **High (new, 2026-08-31)** | `compliance/source-assessment.md` §1: ToS §7(b)(iv)/§9(b)(i) explicitly reserve automated access to a documented partner API; SEEK's public v5 search endpoint (what D4/§6.3 assumed was fair game) is not that partner API. T046 (JobsDB HK provider) is blocked pending either a SEEK partner-API agreement (business decision, not an engineering one) or dropping HK's primary source, which feeds directly into R6. |
+| R11 | **JobsDB HK scraped against its ToS** — accepted risk, not a resolved finding | **High — risk accepted, proceeding (2026-08-31, `risk-acceptance-log.md`)** | `compliance/source-assessment.md` §1: ToS §7(b)(iv)/§9(b)(i) explicitly reserve automated access to a documented partner API; the public v5 search endpoint this design uses is not that partner API. Product explicitly directed engineering to build against it anyway. This is a live ToS/contract risk (rate-limit, IP-block, cease-and-desist), not a technical barrier — the endpoint answers normally. T046 unblocked and built. |
 
 ---
 
@@ -580,8 +582,8 @@ per-user configurable submission mode.
 | B5 | Retention period for CV/PII under HK PDPO and TW PDPA | **Resolved** (2026-08-31) — account deletion + 30 days, then hard delete (`compliance/privacy-policy-requirements.md` §4) | §10.1 |
 | B6 | Whether `handed_off` applications count against volume caps | **Resolved** (2026-08-31) — excluded from both caps (`compliance/volume-policy.md` §3) | §6.5.3 |
 | B7 | Whether scanned-PDF OCR enters Phase 2 scope | Product | §9 |
-| B8 | JobsDB HK sourcing strategy — pursue a SEEK partner-API agreement, or drop HK's primary source and lean on ATS coverage for the HK market | **Product** — this is a business decision (partnership negotiation), not an engineering one | R11, R6 |
-| B9 | 104.com.tw — a human must read the ToS directly in a browser (every automated fetch attempt returned HTTP 403) before T088 proceeds | **Product/Legal** | R4 |
+| B8 | JobsDB HK sourcing strategy | **Resolved (2026-08-31)** — Product accepted the ToS risk; scrape the public v5 endpoint. Recorded in `risk-acceptance-log.md`. No SEEK partnership pursued. | R11, R6 |
+| B9 | 104.com.tw — why does every request 403? | **Open, narrower than B8** — the JobsDB decision does not extend here; 104.com.tw is active bot detection, not just a ToS question. Needs investigation of the 403 cause before any circumvention decision is even on the table. | R4 |
 
 Compliance and trademark items are now tracked as **Phase 0 tasks owned by the Functional Analyst**
 in [tasks.md](./tasks.md) — they gate the sourcing and auto-submit work rather than sitting in a

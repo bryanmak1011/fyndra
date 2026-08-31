@@ -1,0 +1,115 @@
+{
+  "payload": {
+    "hasMore": false,
+    "currentPage": 1,
+    "nextPage": null,
+    "recommendedJobs": [],
+    "trendingKeywords": [],
+    "jobs": [
+      {
+        "id": 23193,
+        "name": "Sr. Software Engineer",
+        "path": "/companies/aifian/jobs/23193",
+        "salary": "NT$ 1,200,000 - 2,000,000 (年薪)",
+        "lastActiveAt": "一天內更新",
+        "location": "臺北市",
+        "companyId": 295,
+        "tags": [],
+        "company": {
+          "id": 295,
+          "path": "/companies/aifian",
+          "brand": "AIFIAN",
+          "logo": "https://s3cdn.yourator.co/companies/logos/000/000/295/default/8efe8c0e331ff34eb32272f5e1274f0b47033787.png",
+          "banner": "https://s3cdn.yourator.co/banners/banners/000/000/361/medium/eb676bdcab58dd4bdbd8b512b22c09b01968d8ce.png",
+          "badges": [
+            "verified"
+          ],
+          "bannerUrl": "https://s3cdn.yourator.co/banners/banners/000/000/361/medium/eb676bdcab58dd4bdbd8b512b22c09b01968d8ce.png",
+          "canThirdPartyUrl": false,
+          "enName": "aifian"
+        },
+        "thirdPartyUrl": null,
+        "follow": false,
+        "externalSource": "teamdoor-unbinded"
+      },
+      {
+        "id": 38445,
+        "name": "Sr. Software Engineer, Android",
+        "path": "/companies/aifian/jobs/38445",
+        "salary": "NT$ 1,200,000 - 2,000,000 (年薪)",
+        "lastActiveAt": "一天內更新",
+        "location": "臺北市",
+        "companyId": 295,
+        "tags": [],
+        "company": {
+          "id": 295,
+          "path": "/companies/aifian",
+          "brand": "AIFIAN",
+          "logo": "https://s3cdn.yourator.co/companies/logos/000/000/295/default/8efe8c0e331ff34eb32272f5e1274f0b47033787.png",
+          "banner": "https://s3cdn.yourator.co/banners/banners/000/000/361/medium/eb676bdcab58dd4bdbd8b512b22c09b01968d8ce.png",
+          "badges": [
+            "verified"
+          ],
+          "bannerUrl": "https://s3cdn.yourator.co/banners/banners/000/000/361/medium/eb676bdcab58dd4bdbd8b512b22c09b01968d8ce.png",
+          "canThirdPartyUrl": false,
+          "enName": "aifian"
+        },
+        "thirdPartyUrl": null,
+        "follow": false,
+        "externalSource": null
+      },
+      {
+        "id": 38558,
+        "name": "Sr. Software Engineer, Cloud Infrastructure",
+        "path": "/companies/aifian/jobs/38558",
+        "salary": "NT$ 1,200,000 - 2,000,000 (年薪)",
+        "lastActiveAt": "一天內更新",
+        "location": "臺北市",
+        "companyId": 295,
+        "tags": [],
+        "company": {
+          "id": 295,
+          "path": "/companies/aifian",
+          "brand": "AIFIAN",
+          "logo": "https://s3cdn.yourator.co/companies/logos/000/000/295/default/8efe8c0e331ff34eb32272f5e1274f0b47033787.png",
+          "banner": "https://s3cdn.yourator.co/banners/banners/000/000/361/medium/eb676bdcab58dd4bdbd8b512b22c09b01968d8ce.png",
+          "badges": [
+            "verified"
+          ],
+          "bannerUrl": "https://s3cdn.yourator.co/banners/banners/000/000/361/medium/eb676bdcab58dd4bdbd8b512b22c09b01968d8ce.png",
+          "canThirdPartyUrl": false,
+          "enName": "aifian"
+        },
+        "thirdPartyUrl": null,
+        "follow": false,
+        "externalSource": null
+      },
+      {
+        "id": 999999,
+        "name": "Test Job With Third Party URL",
+        "path": "/companies/aifian/jobs/23193",
+        "salary": "NT$ 1,200,000 - 2,000,000 (年薪)",
+        "lastActiveAt": "一天內更新",
+        "location": "臺北市",
+        "companyId": 295,
+        "tags": [],
+        "company": {
+          "id": 295,
+          "path": "/companies/aifian",
+          "brand": "TestCo",
+          "logo": "https://s3cdn.yourator.co/companies/logos/000/000/295/default/8efe8c0e331ff34eb32272f5e1274f0b47033787.png",
+          "banner": "https://s3cdn.yourator.co/banners/banners/000/000/361/medium/eb676bdcab58dd4bdbd8b512b22c09b01968d8ce.png",
+          "badges": [
+            "verified"
+          ],
+          "bannerUrl": "https://s3cdn.yourator.co/banners/banners/000/000/361/medium/eb676bdcab58dd4bdbd8b512b22c09b01968d8ce.png",
+          "canThirdPartyUrl": false,
+          "enName": "aifian"
+        },
+        "thirdPartyUrl": "https://boards.greenhouse.io/testco/jobs/123?utm_source=yourator&utm_medium=ads",
+        "follow": false,
+        "externalSource": "teamdoor-unbinded"
+      }
+    ]
+  }
+}
