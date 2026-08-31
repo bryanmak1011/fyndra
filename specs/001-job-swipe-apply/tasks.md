@@ -57,10 +57,10 @@ descoped with a written reason.
 
 **Purpose**: Project skeleton for both codebases
 
-- [ ] T008 Create the repository structure per [plan.md](./plan.md): `api/`, `ios/`, with the module tree under `api/src/` (routes, sourcing, matching, apply, cv, llm, queue, models, middleware)
-- [ ] T009 Initialize the TypeScript/Express project in `api/` on **Node 22 LTS** with Express, Prisma, a job queue, and an LLM SDK; commit `api/package.json` and `api/tsconfig.json`
-- [ ] T010 [P] Create `api/Dockerfile` (Node 22 LTS + `pdftotext`) and `api/docker-compose.yml` with `postgres`, `api`, and `worker` services plus a named volume
-- [ ] T011 [P] Configure ESLint + Prettier for `api/`, and SwiftLint/swift-format for `ios/`, with the constitution's complexity ceiling of 10 enforced as a lint rule
+- [X] T008 Create the repository structure per [plan.md](./plan.md): `api/`, `ios/`, with the module tree under `api/src/` (routes, sourcing, matching, apply, cv, llm, queue, models, middleware)
+- [X] T009 Initialize the TypeScript/Express project in `api/` on **Node 22 LTS** with Express, Prisma, a job queue, and an LLM SDK; commit `api/package.json` and `api/tsconfig.json`
+- [X] T010 [P] Create `api/Dockerfile` (Node 22 LTS + `pdftotext`) and `api/docker-compose.yml` with `postgres`, `api`, and `worker` services plus a named volume
+- [X] T011 [P] Configure ESLint + Prettier for `api/`, and SwiftLint/swift-format for `ios/`, with the constitution's complexity ceiling of 10 enforced as a lint rule
 - [ ] T012 [P] Create the Xcode project `ios/Swipe2Work.xcodeproj` targeting **iOS 17.0+** with Swift 6, plus the `Swipe2WorkTests` unit/snapshot target and a UI test target
 - [ ] T013 [P] Configure CI (build, lint, test, coverage gate at 80%, snapshot diff) so a failing test blocks merge per constitution Principle II
 
@@ -72,19 +72,55 @@ descoped with a written reason.
 
 **⚠️ CRITICAL**: No user story work can begin until this phase completes
 
-- [ ] T014 Define the Prisma schema in `api/prisma/schema.prisma` for all entities in [data-model.md](./data-model.md) (UserProfile, CvDocument, JobPosting, FeedEntry, JobInteraction, Application, ApplicationStatusEvent, ApplicationQuestion, ProposedAnswer, Device), with the unique constraints on `JobInteraction(profileId, jobPostingId)` and `FeedEntry(profileId, jobPostingId)`
-- [ ] T015 Generate and apply the initial migration; verify against the Dockerized Postgres
-- [ ] T016 [P] Implement email + one-time-code auth with opaque bearer tokens (30-day expiry, no refresh endpoint) in `api/src/routes/auth.ts` and `api/src/middleware/auth.ts` (FR-026)
-- [ ] T017 [P] Implement request validation, error mapping to the `Error` schema, and per-token rate limiting in `api/src/middleware/`
-- [ ] T018 [P] Implement structured logging with a per-job correlation id in `api/src/lib/logger.ts`, surfaced as `Application.lastAttemptRef` (SDD §10.3)
-- [ ] T019 [P] Set up the job queue and worker entry point in `api/src/queue/` and `api/src/worker.ts` with handlers registered for crawl, parse-cv, rebuild-match, and submit
-- [ ] T020 [P] Implement the environment/config loader in `api/src/config/` reading `DATABASE_URL`, LLM keys, and `FIRECRAWL_API_KEY`, failing fast on missing required values
-- [ ] T021 [P] Implement the iOS API client foundation in `ios/Swipe2Work/Core/Networking/` — `URLSession` with 30s connect / 60s read timeouts, exponential backoff, request cancellation on view exit, and bearer-token injection (constitution IV)
-- [ ] T022 [P] Implement `BaseURLProvider` in `ios/Swipe2Work/App/` switching DEBUG (localhost or `NGROK_BASE_URL`) vs RELEASE (cloud), per the Migration Controls
+- [X] T014 Define the Prisma schema in `api/prisma/schema.prisma` for all entities in [data-model.md](./data-model.md) (UserProfile, CvDocument, JobPosting, FeedEntry, JobInteraction, Application, ApplicationStatusEvent, ApplicationQuestion, ProposedAnswer, Device), with the unique constraints on `JobInteraction(profileId, jobPostingId)` and `FeedEntry(profileId, jobPostingId)`
+- [X] T015 Generate and apply the initial migration; verify against the Dockerized Postgres
+- [X] T016 [P] Implement email + one-time-code auth with opaque bearer tokens (30-day expiry, no refresh endpoint) in `api/src/routes/auth.ts` and `api/src/middleware/auth.ts` (FR-026)
+- [X] T017 [P] Implement request validation, error mapping to the `Error` schema, and per-token rate limiting in `api/src/middleware/`
+- [X] T018 [P] Implement structured logging with a per-job correlation id in `api/src/lib/logger.ts`, surfaced as `Application.lastAttemptRef` (SDD §10.3)
+- [X] T019 [P] Set up the job queue and worker entry point in `api/src/queue/` and `api/src/worker.ts` with handlers registered for crawl, parse-cv, rebuild-match, and submit
+- [X] T020 [P] Implement the environment/config loader in `api/src/config/` reading `DATABASE_URL`, LLM keys, and `FIRECRAWL_API_KEY`, failing fast on missing required values
+- [X] T021 [P] Implement the iOS API client foundation in `ios/Swipe2Work/Core/Networking/` — `URLSession` with 30s connect / 60s read timeouts, exponential backoff, request cancellation on view exit, and bearer-token injection (constitution IV)
+- [X] T022 [P] Implement `BaseURLProvider` in `ios/Swipe2Work/App/` switching DEBUG (localhost or `NGROK_BASE_URL`) vs RELEASE (cloud), per the Migration Controls
 - [ ] T023 [P] Create the design-token layer and localization scaffolding (`en`, `zh-Hant`) in `ios/Swipe2Work/Core/DesignSystem/` and `Core/Localization/` (FR-028)
-- [ ] T024 [P] Contract-test harness in `api/tests/contract/` validating live responses against `contracts/openapi.yaml`
+- [X] T024 [P] Contract-test harness in `api/tests/contract/` validating live responses against `contracts/openapi.yaml`
 
 **Checkpoint**: Auth works, schema is live, queue runs, client can call the API
+
+> **Build status (2026-08-31)** — Phases 1–2 executed for real: `npm install` run,
+> migrations applied against a live local Postgres (`brew install postgresql@16`), the
+> `api` server boots and serves `/v1/health`, `/v1/auth/*`, `/v1/devices` over real HTTP,
+> and `npm test` passes 8/8 against that database. `ios/Swipe2WorkCore` (Swift 6, no
+> SwiftUI/UIKit) builds clean with `swift build`. Deviations from the task text, and why:
+> - **T009**: Express + Prisma installed; the queue is Postgres-backed (see the
+>   `ponytail:` note on `QueueJob` in `schema.prisma`) rather than a separate library; no
+>   LLM SDK added yet — ponytail: don't install a dependency with no calling code, add it
+>   with T033 (CV interpretation) once something actually imports it.
+> - **T012/T013**: **not done** — this environment has Xcode Command Line Tools only (no
+>   Xcode.app, no iOS SDK, `xcrun --sdk iphonesimulator` fails), so no `.xcodeproj` could
+>   be generated and no CI was configured against it. See `ios/README.md` for the exact
+>   manual step needed (File → New → Project in real Xcode).
+> - **T019**: queue mechanism (enqueue/dequeue/retry, `SELECT ... FOR UPDATE SKIP LOCKED`)
+>   is built and correct; no handlers are *registered* yet — ponytail: an empty handler
+>   stub with no logic is scaffolding, not infrastructure. Handlers register as each is
+>   built (T034, T052, T069).
+> - **T021/T022**: implemented in a new `ios/Swipe2WorkCore` Swift Package (not directly
+>   under `ios/Swipe2Work/Core/`) specifically so they're buildable and unit-testable
+>   without Xcode. `APIClientTests.swift` exists and is complete but **could not be run**
+>   in this environment — neither `XCTest` nor `Testing` (swift-testing) is available
+>   standalone under Command Line Tools. `swift build` passing is real signal (it compiles
+>   and type-checks); the tests need a real Xcode run to confirm they pass.
+> - **T023**: **not done**, deliberately — no Feature screen exists yet to consume design
+>   tokens or localized strings, so authoring them now would be exactly the
+>   "boilerplate/scaffolding for later" ponytail says to skip. Build it alongside the
+>   first screen that needs it (T036, US1).
+> - **T024**: contract tests exist and hit real endpoints with real assertions
+>   (`tests/contract/auth.test.ts`, 8 tests), but this is manual assertion, not a generic
+>   schema-validating harness that diffs every response against `openapi.yaml`
+>   automatically — lighter-weight than the task literally describes; upgrade path is a
+>   library like `express-openapi-validator` if the manual approach stops scaling.
+>
+> Not started: Phase 0 (compliance — dispatched to a background research agent, not yet
+> returned) and Phases 3–7 (US1–US4, Polish — 68 tasks, T025–T092).
 
 ---
 

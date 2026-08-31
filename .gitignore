@@ -8,11 +8,13 @@ node_modules/
 dist/
 *.log
 
-# Xcode
+# Xcode / Swift Package Manager
 build/
 DerivedData/
 *.xcuserstate
 xcuserdata/
+.build/
+.swiftpm/
 .DS_Store
 
 # Claude Code local state

@@ -1,0 +1,293 @@
+// Schema follows specs/001-job-swipe-apply/data-model.md (rev 3).
+// Postgres is the only store — see SDD.md §6.6: career-ops is a design
+// reference, nothing is mirrored to or read from an external system.
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+enum Market {
+  HK
+  TW
+}
+
+enum Language {
+  zh_Hant
+  en
+  mixed
+}
+
+enum SubmissionMode {
+  review_before_sending
+  auto_submit
+}
+
+enum ApplyRoute {
+  direct_submit_allowlisted
+  handoff
+}
+
+enum CvFileFormat {
+  pdf
+  docx
+}
+
+enum CvParseStatus {
+  parsing
+  succeeded
+  failed
+}
+
+enum SwipeDirection {
+  left
+  right
+}
+
+// Pre-submission states the system owns, then post-submission states the
+// user reports (FR-011a) — see data-model.md "Status vocabulary".
+enum ApplicationStatus {
+  queued
+  awaiting_review
+  pending_needs_answer
+  handed_off
+  needs_attention
+  applied
+  responded
+  interview
+  offer
+  hired
+  rejected
+  withdrawn
+}
+
+enum AnswerSource {
+  profile
+  cv
+  reused_answer
+  generated
+}
+
+enum DevicePlatform {
+  apns
+  fcm
+}
+
+enum QueueJobType {
+  crawl
+  parse_cv
+  rebuild_match
+  submit
+}
+
+enum QueueJobStatus {
+  pending
+  running
+  succeeded
+  failed
+}
+
+model UserProfile {
+  id                  String         @id @default(uuid())
+  email               String         @unique
+  createdAt           DateTime       @default(now())
+  updatedAt           DateTime       @updatedAt
+  yoe                 Int?
+  keywords            String[]       @default([])
+  submissionMode      SubmissionMode @default(review_before_sending)
+  markets             Market[]       @default([])
+  preferredLanguage   Language       @default(en)
+  dailySubmissionCap  Int            @default(10)
+  perEmployerCap      Int            @default(1)
+
+  cvDocuments         CvDocument[]
+  jobInteractions     JobInteraction[]
+  feedEntries         FeedEntry[]
+  applicationQuestions ApplicationQuestion[]
+  devices             Device[]
+  authCodes           AuthCode[]
+}
+
+model AuthCode {
+  id        String   @id @default(uuid())
+  profileId String
+  profile   UserProfile @relation(fields: [profileId], references: [id], onDelete: Cascade)
+  codeHash  String
+  createdAt DateTime @default(now())
+  expiresAt DateTime
+  consumedAt DateTime?
+
+  @@index([profileId])
+}
+
+model AuthToken {
+  id        String   @id @default(uuid())
+  profileId String
+  tokenHash String   @unique
+  createdAt DateTime @default(now())
+  expiresAt DateTime
+
+  @@index([profileId])
+}
+
+model CvDocument {
+  id                  String        @id @default(uuid())
+  profileId           String
+  profile             UserProfile   @relation(fields: [profileId], references: [id], onDelete: Cascade)
+  fileFormat          CvFileFormat
+  storageRef          String
+  detectedLanguage    Language?
+  rawExtractedKeywords String[]     @default([])
+  rawExtractedYoe     Int?
+  parseStatus         CvParseStatus @default(parsing)
+  languageSegmenter   String?
+  createdAt           DateTime      @default(now())
+
+  @@index([profileId, createdAt])
+}
+
+model JobPosting {
+  id                 String     @id @default(uuid())
+  sourceProvider     String
+  employerApplyUrl   String?
+  externalRef        String
+  title              String
+  employer           String
+  requirementsSummary String
+  language           Language
+  market             Market
+  applyRoute         ApplyRoute
+  fetchedAt          DateTime   @default(now())
+  livenessCheckedAt  DateTime?
+
+  feedEntries        FeedEntry[]
+  jobInteractions    JobInteraction[]
+
+  @@unique([sourceProvider, externalRef])
+  @@index([employerApplyUrl])
+  @@index([market, language])
+}
+
+// Per-user ranking — a property of the (profile, posting) pair, not the
+// posting itself (data-model.md "FeedEntry").
+model FeedEntry {
+  id           String      @id @default(uuid())
+  profileId    String
+  profile      UserProfile @relation(fields: [profileId], references: [id], onDelete: Cascade)
+  jobPostingId String
+  jobPosting   JobPosting  @relation(fields: [jobPostingId], references: [id], onDelete: Cascade)
+  matchScore   Float
+  rankedAt     DateTime    @default(now())
+
+  @@unique([profileId, jobPostingId])
+  @@index([profileId, matchScore])
+}
+
+model JobInteraction {
+  id           String         @id @default(uuid())
+  profileId    String
+  profile      UserProfile    @relation(fields: [profileId], references: [id], onDelete: Cascade)
+  jobPostingId String
+  jobPosting   JobPosting     @relation(fields: [jobPostingId], references: [id], onDelete: Cascade)
+  direction    SwipeDirection
+  createdAt    DateTime       @default(now())
+
+  application  Application?
+
+  @@unique([profileId, jobPostingId])
+}
+
+model Application {
+  id                String            @id @default(uuid())
+  jobInteractionId  String            @unique
+  jobInteraction    JobInteraction    @relation(fields: [jobInteractionId], references: [id], onDelete: Cascade)
+  submissionMode    SubmissionMode
+  applyRoute        ApplyRoute
+  status            ApplicationStatus @default(queued)
+  failureReason     String?
+  lastAttemptRef    String?
+  employerApplyUrl  String?
+  submittedAt       DateTime?
+  createdAt         DateTime          @default(now())
+  updatedAt         DateTime          @updatedAt
+
+  statusHistory     ApplicationStatusEvent[]
+  questions         ApplicationQuestion[]
+  proposedAnswers   ProposedAnswer[]
+
+  @@index([status])
+}
+
+model ApplicationStatusEvent {
+  id            String            @id @default(uuid())
+  applicationId String
+  application   Application       @relation(fields: [applicationId], references: [id], onDelete: Cascade)
+  status        ApplicationStatus
+  occurredAt    DateTime          @default(now())
+  note          String?
+
+  @@index([applicationId, occurredAt])
+}
+
+model ApplicationQuestion {
+  id                   String      @id @default(uuid())
+  applicationId        String
+  application          Application @relation(fields: [applicationId], references: [id], onDelete: Cascade)
+  profileId            String
+  profile              UserProfile @relation(fields: [profileId], references: [id], onDelete: Cascade)
+  questionText         String
+  questionFingerprint  String
+  isSensitive          Boolean     @default(false)
+  answer               String?
+  answeredAt           DateTime?
+
+  // Reuse lookup (FR-021): only non-sensitive, answered questions are matched.
+  @@index([profileId, questionFingerprint, isSensitive])
+}
+
+model ProposedAnswer {
+  id            String       @id @default(uuid())
+  applicationId String
+  application   Application  @relation(fields: [applicationId], references: [id], onDelete: Cascade)
+  fieldId       String
+  label         String
+  answer        String
+  source        AnswerSource
+  editedByUser  Boolean      @default(false)
+
+  @@index([applicationId])
+}
+
+model Device {
+  id         String         @id @default(uuid())
+  profileId  String
+  profile    UserProfile    @relation(fields: [profileId], references: [id], onDelete: Cascade)
+  pushToken  String
+  platform   DevicePlatform
+  createdAt  DateTime       @default(now())
+
+  @@unique([profileId, pushToken])
+}
+
+// ponytail: a Postgres table as the job queue instead of adding Redis/BullMQ
+// — Postgres is already a dependency, and Phase 1 volume doesn't need a
+// dedicated broker. ceiling: no fan-out beyond a few workers polling the
+// same table; move to BullMQ/SQS if throughput or multi-region ever demands it.
+model QueueJob {
+  id          String         @id @default(uuid())
+  type        QueueJobType
+  payload     Json
+  status      QueueJobStatus @default(pending)
+  attempts    Int            @default(0)
+  lastError   String?
+  createdAt   DateTime       @default(now())
+  runAfter    DateTime       @default(now())
+  lockedAt    DateTime?
+  lockedBy    String?
+
+  @@index([status, runAfter])
+}

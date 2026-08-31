@@ -1,0 +1,43 @@
+services:
+  postgres:
+    image: postgres:16-alpine
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: swipe2work
+      POSTGRES_PASSWORD: swipe2work
+      POSTGRES_DB: swipe2work
+    ports:
+      - '5432:5432'
+    volumes:
+      - swipe2work_pgdata:/var/lib/postgresql/data
+    healthcheck:
+      test: ['CMD-SHELL', 'pg_isready -U swipe2work']
+      interval: 5s
+      timeout: 5s
+      retries: 10
+
+  api:
+    build: .
+    restart: unless-stopped
+    env_file: .env
+    environment:
+      DATABASE_URL: postgresql://swipe2work:swipe2work@postgres:5432/swipe2work
+    ports:
+      - '3000:3000'
+    depends_on:
+      postgres:
+        condition: service_healthy
+
+  worker:
+    build: .
+    restart: unless-stopped
+    env_file: .env
+    environment:
+      DATABASE_URL: postgresql://swipe2work:swipe2work@postgres:5432/swipe2work
+    command: ['npm', 'run', 'start:worker']
+    depends_on:
+      postgres:
+        condition: service_healthy
+
+volumes:
+  swipe2work_pgdata:
