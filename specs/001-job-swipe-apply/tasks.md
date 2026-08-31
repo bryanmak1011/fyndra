@@ -40,16 +40,36 @@ analyst produces written findings that become acceptance criteria for T020+ and 
 **⚠️ BLOCKING**: T001 blocks all Taiwan provider work (T024–T026). T002 blocks all auto-submit
 work (T060–T066). T003 blocks CV storage (T030). Everything else may proceed in parallel.
 
-- [ ] T001 [P] [FA] Per-source ToS and robots.txt assessment for each planned job source (JobsDB HK, Yourator, 104.com.tw, 1111, Cake, Meet.jobs, CTgoodjobs, cpjobs, and each ATS family) — document for each: does the ToS permit automated access, what does robots.txt allow, is there a published rate limit, and is there an official API alternative. Record a GO/NO-GO per source with the quoted clause supporting it, in `specs/001-job-swipe-apply/compliance/source-assessment.md`
-- [ ] T002 [P] [FA] App Store Review Guidelines assessment for automated application submission — determine whether submitting employment applications on a user's behalf to allowlisted ATS endpoints is acceptable under the current Guidelines, what disclosure the listing and in-app flow must carry, and what would trigger rejection. Required by constitution Principle V before the submitter is built. Output to `specs/001-job-swipe-apply/compliance/app-store-assessment.md`
-- [ ] T003 [P] [FA] CV/PII handling policy under **HK PDPO** and **TW PDPA** — define lawful basis, purpose limitation, retention period, the user's access/erasure path, and cross-border transfer position (the LLM provider and Firecrawl are both offshore processors). Specify what may never leave our infrastructure. Output to `specs/001-job-swipe-apply/compliance/privacy-policy-requirements.md`
-- [ ] T004 [P] [FA] Trademark and attribution clearance — confirm **Swipe2Work** is clear for use as product name, bundle identifier, and store listing; confirm no career-ops mark appears anywhere in the product (career-ops's `TRADEMARK.md` does not licence its name for commercial product naming); define the credit-only attribution wording for adapted MIT-licensed prompt text. Output to `specs/001-job-swipe-apply/compliance/naming-attribution.md`
-- [ ] T005 [P] [FA] Volume-discipline policy — set the per-user daily submission cap and per-employer cap with a stated rationale, and decide whether `handed_off` applications count toward them (SDD Appendix B6). These become the FR-024 defaults. Output to `specs/001-job-swipe-apply/compliance/volume-policy.md`
-- [ ] T006 [P] [FA] Sensitive-question taxonomy for HK/TW — enumerate the question classes that must never be auto-answered (work authorization, visa status, HKID / 身分證字號, 期望薪資 / expected salary, demographics), with Traditional Chinese and English phrasings for each, so `apply/sensitive.ts` has a testable specification rather than a prose rule (FR-022). Output to `specs/001-job-swipe-apply/compliance/sensitive-questions.md`
-- [ ] T007 [FA] Consolidate T001–T006 into a one-page compliance summary with explicit GO/NO-GO per capability (Taiwan sourcing, auto-submit, CV retention, naming), and update [SDD §12](./SDD.md#12-risk-register) risk severities and [Appendix B](./SDD.md#appendix-b-open-decisions) to reflect the findings
+- [X] T001 [P] [FA] Per-source ToS and robots.txt assessment for each planned job source (JobsDB HK, Yourator, 104.com.tw, 1111, Cake, Meet.jobs, CTgoodjobs, cpjobs, and each ATS family) — document for each: does the ToS permit automated access, what does robots.txt allow, is there a published rate limit, and is there an official API alternative. Record a GO/NO-GO per source with the quoted clause supporting it, in `specs/001-job-swipe-apply/compliance/source-assessment.md`
+- [X] T002 [P] [FA] App Store Review Guidelines assessment for automated application submission — determine whether submitting employment applications on a user's behalf to allowlisted ATS endpoints is acceptable under the current Guidelines, what disclosure the listing and in-app flow must carry, and what would trigger rejection. Required by constitution Principle V before the submitter is built. Output to `specs/001-job-swipe-apply/compliance/app-store-assessment.md`
+- [X] T003 [P] [FA] CV/PII handling policy under **HK PDPO** and **TW PDPA** — define lawful basis, purpose limitation, retention period, the user's access/erasure path, and cross-border transfer position (the LLM provider and Firecrawl are both offshore processors). Specify what may never leave our infrastructure. Output to `specs/001-job-swipe-apply/compliance/privacy-policy-requirements.md`
+- [X] T004 [P] [FA] Trademark and attribution clearance — confirm **Swipe2Work** is clear for use as product name, bundle identifier, and store listing; confirm no career-ops mark appears anywhere in the product (career-ops's `TRADEMARK.md` does not licence its name for commercial product naming); define the credit-only attribution wording for adapted MIT-licensed prompt text. Output to `specs/001-job-swipe-apply/compliance/naming-attribution.md`
+- [X] T005 [P] [FA] Volume-discipline policy — set the per-user daily submission cap and per-employer cap with a stated rationale, and decide whether `handed_off` applications count toward them (SDD Appendix B6). These become the FR-024 defaults. Output to `specs/001-job-swipe-apply/compliance/volume-policy.md`
+- [X] T006 [P] [FA] Sensitive-question taxonomy for HK/TW — enumerate the question classes that must never be auto-answered (work authorization, visa status, HKID / 身分證字號, 期望薪資 / expected salary, demographics), with Traditional Chinese and English phrasings for each, so `apply/sensitive.ts` has a testable specification rather than a prose rule (FR-022). Output to `specs/001-job-swipe-apply/compliance/sensitive-questions.md`
+- [X] T007 [FA] Consolidate T001–T006 into a one-page compliance summary with explicit GO/NO-GO per capability (Taiwan sourcing, auto-submit, CV retention, naming), and update [SDD §12](./SDD.md#12-risk-register) risk severities and [Appendix B](./SDD.md#appendix-b-open-decisions) to reflect the findings
 
 **Checkpoint**: Compliance posture documented. Sourcing and auto-submit are unblocked or explicitly
 descoped with a written reason.
+
+> **Build status (2026-08-31)** — Not a clean pass. Findings, fully sourced, are in
+> [`compliance/`](./compliance/); SDD.md §12 and Appendix B are updated to match. Two results are
+> load-bearing enough to flag here directly:
+> - **T046 (JobsDB HK provider) is now BLOCKED** — its ToS reserves automated access to a
+>   documented partner API that isn't the public endpoint the design assumed (SDD R11). Needs a
+>   SEEK partnership (Product decision, SDD Appendix B8) or the source dropped for HK.
+> - **T088 (104.com.tw provider) stays BLOCKED** — every fetch attempt (robots.txt, ToS,
+>   homepage) returned HTTP 403; a human has to read it in a browser (SDD Appendix B9).
+> - **Product naming is reopened, not resolved** — `swipe2work.ai` (Germany) is an active,
+>   conceptually identical product under nearly the same name. Do not use "Swipe2Work" externally
+>   (App Store Connect, domain, marketing) until a real trademark clearance search runs (SDD R3,
+>   Appendix B4). Internal repo/spec use is unaffected.
+> - **Unblocked and ready**: T047 (Yourator), T048 (ATS-family providers, read side), T030 (CV
+>   storage — retention = account deletion + 30 days), T054/T060 (volume caps — 15/day,
+>   1/employer, `handed_off` excluded), T063/T058 (sensitive-question carve-out — taxonomy
+>   delivered). `api/prisma/schema.prisma`'s `dailySubmissionCap` default is already updated to 15
+>   and migrated.
+> - cakeresume.com/cake.me and meet.jobs are **not currently tasks** in this file but are flagged
+>   NO-GO / moot respectively in case Tier-2 scope expands to them later.
 
 ---
 

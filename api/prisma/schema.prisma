@@ -101,7 +101,7 @@ model UserProfile {
   submissionMode      SubmissionMode @default(review_before_sending)
   markets             Market[]       @default([])
   preferredLanguage   Language       @default(en)
-  dailySubmissionCap  Int            @default(10)
+  dailySubmissionCap  Int            @default(15)
   perEmployerCap      Int            @default(1)
 
   cvDocuments         CvDocument[]
