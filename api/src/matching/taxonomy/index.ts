@@ -59,9 +59,3 @@ for (const entry of TAXONOMY) {
 export function expandToken(token: string): Set<string> {
   return equivalenceMap.get(token.toLowerCase()) ?? new Set([token.toLowerCase()]);
 }
-
-/** True if any of `a`'s tokens taxonomy-match any of `b`'s tokens (same term or a known equivalent). */
-export function haveSharedMeaning(tokensA: readonly string[], tokensB: readonly string[]): boolean {
-  const expandedA = new Set(tokensA.flatMap((t) => [...expandToken(t)]));
-  return tokensB.some((t) => [...expandToken(t)].some((eq) => expandedA.has(eq)));
-}

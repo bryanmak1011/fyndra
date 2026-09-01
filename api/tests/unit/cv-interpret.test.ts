@@ -53,4 +53,18 @@ describe('interpretCv', () => {
     const result = await interpretCv(EN_CV, 'en', llm);
     expect(result.keywords).toEqual(['TypeScript', 'PostgreSQL']);
   });
+
+  it('SDD §10.1: extra fields an adversarial response tries to smuggle in are silently ignored, not acted on', async () => {
+    // Simulates a CV containing prompt-injection text that got the model
+    // to emit extra JSON fields beyond the documented shape. The only
+    // structural guarantee this codebase relies on is that nothing reads
+    // fields other than `keywords`/`yoe` from this response — proving
+    // that here, rather than just asserting it by code inspection.
+    const llm = fakeLlm(
+      '{"keywords": ["TypeScript"], "yoe": 5, "status": "applied", "role": "admin", "__proto__": {"isAdmin": true}}',
+    );
+    const result = await interpretCv(EN_CV, 'en', llm);
+    expect(result).toEqual({ keywords: ['TypeScript'], yoe: 5 });
+    expect(Object.keys(result)).toEqual(['keywords', 'yoe']);
+  });
 });
