@@ -4,6 +4,7 @@ import { prisma } from '../lib/prisma.js';
 import { Errors } from '../lib/errors.js';
 import { validateBody } from '../middleware/validate.js';
 import { recordAnswer } from '../apply/answer-reuse.js';
+import { isValidTransition } from '../apply/status-transitions.js';
 
 export const applicationsRouter = Router();
 
@@ -13,6 +14,95 @@ async function loadOwnedApplication(applicationId: string, profileId: string) {
     include: { jobInteraction: true },
   });
 }
+
+// GET /applications (T077) — status filtering per contracts/openapi.yaml.
+const listQuerySchema = z.object({
+  status: z.union([z.string(), z.array(z.string())]).optional(),
+});
+
+applicationsRouter.get('/', async (req, res, next) => {
+  const parsed = listQuerySchema.safeParse(req.query);
+  if (!parsed.success) {
+    next(parsed.error);
+    return;
+  }
+  const statusFilter = parsed.data.status
+    ? Array.isArray(parsed.data.status)
+      ? parsed.data.status
+      : [parsed.data.status]
+    : undefined;
+
+  const applications = await prisma.application.findMany({
+    where: {
+      jobInteraction: { profileId: req.profileId! },
+      ...(statusFilter && { status: { in: statusFilter as never[] } }),
+    },
+    orderBy: { createdAt: 'desc' },
+  });
+
+  res.status(200).json(
+    applications.map((a) => ({
+      id: a.id,
+      submissionMode: a.submissionMode,
+      applyRoute: a.applyRoute,
+      status: a.status,
+      failureReason: a.failureReason,
+      employerApplyUrl: a.employerApplyUrl,
+      submittedAt: a.submittedAt?.toISOString() ?? null,
+    })),
+  );
+});
+
+// GET /applications/{id} (T077) — includes status history.
+applicationsRouter.get('/:id', async (req, res, next) => {
+  const application = await loadOwnedApplication(req.params.id, req.profileId!);
+  if (!application) {
+    next(Errors.notFound('Application not found'));
+    return;
+  }
+
+  const statusHistory = await prisma.applicationStatusEvent.findMany({
+    where: { applicationId: application.id },
+    orderBy: { occurredAt: 'asc' },
+  });
+
+  const detail = await serializeApplication(application.id);
+  res.status(200).json({
+    ...detail,
+    statusHistory: statusHistory.map((e) => ({
+      status: e.status,
+      occurredAt: e.occurredAt.toISOString(),
+      note: e.note,
+    })),
+  });
+});
+
+const statusUpdateSchema = z.object({
+  status: z.enum(['responded', 'interview', 'offer', 'hired', 'rejected', 'withdrawn']),
+  note: z.string().optional(),
+});
+
+// POST /applications/{id}/status (T078, FR-011a)
+applicationsRouter.post('/:id/status', validateBody(statusUpdateSchema), async (req, res, next) => {
+  const application = await loadOwnedApplication(req.params.id, req.profileId!);
+  if (!application) {
+    next(Errors.notFound('Application not found'));
+    return;
+  }
+
+  const { status: nextStatus, note } = req.body as z.infer<typeof statusUpdateSchema>;
+  if (!isValidTransition(application.status, nextStatus)) {
+    next(Errors.conflict('invalid_transition', `Cannot move from ${application.status} to ${nextStatus}`));
+    return;
+  }
+
+  await prisma.$transaction([
+    prisma.application.update({ where: { id: application.id }, data: { status: nextStatus } }),
+    prisma.applicationStatusEvent.create({ data: { applicationId: application.id, status: nextStatus, note } }),
+  ]);
+
+  res.status(200).json(await serializeApplication(application.id));
+});
 
 async function serializeApplication(applicationId: string) {
   const application = await prisma.application.findUniqueOrThrow({ where: { id: applicationId } });

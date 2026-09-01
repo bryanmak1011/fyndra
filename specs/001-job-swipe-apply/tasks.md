@@ -412,20 +412,46 @@ mark one `interview` and confirm it persists; confirm an illegal transition is r
 
 ### Tests for User Story 4 ⚠️ Write first, confirm they fail
 
-- [ ] T074 [P] [US4] Contract tests for `GET /applications`, `GET /applications/{id}`, `POST /applications/{id}/status` in `api/tests/contract/tracking.test.ts`
-- [ ] T075 [P] [US4] Unit tests for legal post-submission transitions in `api/tests/unit/status-transitions.test.ts` — `hired` from `queued` must return `409`
+- [X] T074 [P] [US4] Contract tests for `GET /applications`, `GET /applications/{id}`, `POST /applications/{id}/status` in `api/tests/contract/tracking.test.ts`
+- [X] T075 [P] [US4] Unit tests for legal post-submission transitions in `api/tests/unit/status-transitions.test.ts` — `hired` from `queued` must return `409`
 - [ ] T076 [P] [US4] Snapshot tests for the tracking list and detail timeline in `ios/FyndraTests/Snapshot/TrackingTests.swift`
 
 ### Implementation for User Story 4
 
-- [ ] T077 [P] [US4] Implement `GET /applications` with status filtering and `GET /applications/{id}` with status history in `api/src/routes/applications.ts`
-- [ ] T078 [US4] Implement `POST /applications/{id}/status` for user-reported progression, validating transitions and appending an `ApplicationStatusEvent` (FR-011a)
+- [X] T077 [P] [US4] Implement `GET /applications` with status filtering and `GET /applications/{id}` with status history in `api/src/routes/applications.ts`
+- [X] T078 [US4] Implement `POST /applications/{id}/status` for user-reported progression, validating transitions and appending an `ApplicationStatusEvent` (FR-011a)
 - [ ] T079 [P] [US4] Implement APNs push from the worker in `api/src/notifications/` for `pending_needs_answer`, `needs_attention`, and terminal statuses, plus `POST /devices` (FR-029)
 - [ ] T080 [P] [US4] Implement the tracking list view + view model in `ios/Fyndra/Features/ApplicationTracking/`
 - [ ] T081 [US4] Implement the application detail timeline and the status-update control in `ios/Fyndra/Features/ApplicationTracking/` (depends on T080)
 - [ ] T082 [US4] Implement push-permission request at first right-swipe (contextual, not at launch) and in-app badge fallback in `ios/Fyndra/` (constitution V)
 
 **Checkpoint**: All four user stories independently functional
+
+> **Build status (2026-09-01)** — T074/T075/T077/T078 done for real. `apply/status-transitions.ts`
+> extracted as its own pure module (mirrors `apply-route.ts`/`caps.ts`'s pattern) — 11/11 unit
+> tests including every illegal transition the task calls for (`hired` from `queued`, skipping a
+> stage, moving backwards, any transition out of a terminal state, out of every system-owned
+> pre-submission state). `GET /applications` (status filter), `GET /applications/{id}` (with
+> status history), `POST /applications/{id}/status` — 8/8 contract tests.
+>
+> **T079 (APNs push) not attempted** — sending a real push notification needs an Apple Developer
+> Program membership's push certificate/key (`APNS_KEY_ID`/`APNS_TEAM_ID`/`APNS_PRIVATE_KEY_PATH`,
+> all blank in `.env`), the same category of credential gap the LLM work had before the OpenRouter
+> key arrived. Unlike that gap, this one needs a paid Apple Developer account, not a free API key —
+> not something to build blind and leave unverified against a real push service. `POST /devices`
+> (token registration) already exists (Phase 2, T024); the actual send logic is what's missing.
+>
+> **T071-T073, T076, T080-T082 (all iOS) not started** — same no-Xcode constraint as every other
+> iOS task this session.
+>
+> This closes out everything in the backend that doesn't depend on either the T067 apply-flow
+> decision (BLOCKERS.md) or credentials/tooling this environment doesn't have (Apple Developer
+> account, Xcode). **171/172 API tests passing** — the one failure is the same known
+> Nvidia/OpenRouter free-tier capacity flake seen earlier ("Worker local total request limit
+> reached"), correctly surfaced by `llm/client.ts`'s error handling rather than crashing; not a
+> code defect. As the suite has grown, more parallel Jest workers hit the shared free-tier pool
+> simultaneously, so this flake is now more frequent — a real cost of the free dev model, not a
+> regression. tsc and eslint clean.
 
 ---
 
