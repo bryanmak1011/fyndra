@@ -323,16 +323,16 @@ a non-allowlisted one → falls back to review. A sensitive question always bloc
 ### Tests for User Story 3 ⚠️ Write first, confirm they fail
 
 - [ ] T057 [P] [US3] Contract tests for `POST /applications/{id}/confirm`, `/handoff-complete`, and `/questions/{qid}/answer` in `api/tests/contract/applications.test.ts`
-- [ ] T058 [P] [US3] Unit tests for the sensitive-field carve-out in `api/tests/unit/sensitive.test.ts` — every class from T006, in both languages, must force `pending_needs_answer` in **both** submission modes and must never be reused (FR-022)
-- [ ] T059 [P] [US3] Unit tests for the allowlist gate in `api/tests/unit/apply-route.test.ts` — a non-allowlisted posting in auto-submit mode routes to `awaiting_review`, never to a submission attempt (FR-009)
-- [ ] T060 [P] [US3] Unit tests for volume caps in `api/tests/unit/caps.test.ts` — cap already spent → `409` at swipe; cap crossed while queued → `awaiting_review` with `cap_reached`
+- [X] T058 [P] [US3] Unit tests for the sensitive-field carve-out in `api/tests/unit/sensitive.test.ts` — every class from T006, in both languages, must force `pending_needs_answer` in **both** submission modes and must never be reused (FR-022)
+- [X] T059 [P] [US3] Unit tests for the allowlist gate in `api/tests/unit/apply-route.test.ts` — a non-allowlisted posting in auto-submit mode routes to `awaiting_review`, never to a submission attempt (FR-009)
+- [X] T060 [P] [US3] Unit tests for volume caps in `api/tests/unit/caps.test.ts` — cap already spent → `409` at swipe; cap crossed while queued → `awaiting_review` with `cap_reached`
 - [ ] T061 [P] [US3] Integration test for the full state machine in `api/tests/integration/apply-flow.test.ts` covering every transition in [data-model.md](./data-model.md)
 - [ ] T062 [P] [US3] Snapshot tests for the answer-sheet review and pending-question screens in `ios/FyndraTests/Snapshot/ApplyTests.swift`
 
 ### Implementation for User Story 3
 
-- [ ] T063 [US3] Implement the sensitive-question classifier in `api/src/apply/sensitive.ts` from T006's taxonomy — bilingual, testable, fail-closed (an unclassifiable question is treated as sensitive)
-- [ ] T064 [P] [US3] Implement ATS form-schema readers in `api/src/apply/schemas/` for Greenhouse, Lever, Ashby, Workable
+- [X] T063 [US3] Implement the sensitive-question classifier in `api/src/apply/sensitive.ts` from T006's taxonomy — bilingual, testable, fail-closed (an unclassifiable question is treated as sensitive)
+- [X] T064 [P] [US3] Implement ATS form-schema readers in `api/src/apply/schemas/` for Greenhouse, Lever, Ashby, Workable — **Greenhouse only, built and verified live 2026-09-01.** Lever/Ashby/Workable's form-schema APIs all require authenticated partner access we don't have (confirmed live, not assumed) — see `BLOCKERS.md` 2026-09-01. `sourcing/apply-route.ts`'s allowlist narrowed to Greenhouse-only as a direct consequence; T067's ATS submitter is now Greenhouse-only too.
 - [ ] T065 [US3] Implement answer prefill in `api/src/apply/prefill.ts` — profile/CV mapping plus LLM drafting for free-text fields, producing `ProposedAnswer` rows with a `source` for each (depends on T063, T064)
 - [ ] T066 [US3] Implement answer reuse in `api/src/apply/answer-reuse.ts` keyed on `(profileId, questionFingerprint)`, excluding sensitive questions (FR-021, FR-022)
 - [ ] T067 [US3] Implement the ATS submitter in `api/src/apply/submit-ats.ts` — allowlist-gated only, with CAPTCHA and multi-step detection producing classified `failureReason` values (depends on T002's GO, T064)
@@ -344,6 +344,26 @@ a non-allowlisted one → falls back to review. A sensitive question always bloc
 - [ ] T073 [US3] Implement the submission-mode setting and cap display in `ios/Fyndra/Features/Settings/` — default review-before-sending, auto-submit as an informed opt-in (FR-018, FR-019)
 
 **Checkpoint**: Applications are prepared and submitted or handed off, with safety rules enforced
+
+> **Build status (2026-09-01)** — T063/T058 (sensitive classifier) and T064 (Greenhouse-only form
+> schema) done for real:
+> - **T063/T058**: `apply/sensitive.ts` implements all 5 categories from `compliance/sensitive-
+>   questions.md` bilingually — 21/21 tests including every adversarial near-miss the spec calls
+>   for ("years of experience" vs. age, "expected start date" vs. salary). **3 real bugs found and
+>   fixed while getting the fixtures to pass**: the HKID format regex didn't allow the common
+>   parenthesised check-digit format (`A123456(7)`); "目前薪資" (current salary) wasn't recognized
+>   because the co-occurrence regex only looked for 期望/希望/要求 (expected/desired/required), not
+>   目前/現職 (current); and a compound HK phrase mentioning both an ID card and a work visa needed
+>   the category-check order changed (visa sponsorship checked before work authorization) to match
+>   the spec's own worked example. Category-check priority: national_id → visa_sponsorship →
+>   work_authorization → salary → demographic.
+> - **T064 found a significant, load-bearing gap — logged in `BLOCKERS.md`**: only Greenhouse has
+>   a public, unauthenticated form-schema API. Lever, Ashby, and Workable all gate application
+>   form fields behind authenticated partner access. `sourcing/apply-route.ts`'s allowlist is now
+>   Greenhouse-only (was all 4 ATS families) — SDD.md R12 records this. T067 (the ATS submitter)
+>   is Greenhouse-only as a direct consequence.
+>
+> **125/125 API tests passing**, tsc and eslint clean. T057, T059-T062, T065-T073 not yet started.
 
 ---
 

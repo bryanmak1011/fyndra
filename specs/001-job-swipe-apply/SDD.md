@@ -280,7 +280,7 @@ flowchart TD
     SENS -->|yes| PEND["pending_needs_answer<br/>+ APNs push"]
     SENS -->|no| MODE{"submissionMode"}
     MODE -->|review_before_sending| REV["awaiting_review<br/>answer sheet to app"]
-    MODE -->|auto_submit| ALLOW{"ATS allowlisted?<br/>GH / Lever / Ashby / Workable"}
+    MODE -->|auto_submit| ALLOW{"ATS allowlisted?<br/>Greenhouse only (2026-09-01)"}
     ALLOW -->|no| REV
     ALLOW -->|yes| CAP{"Daily / per-employer<br/>cap ok?"}
     CAP -->|no| REV
@@ -514,6 +514,7 @@ cloud deployment is Phase 2's first task — not a detail to discover at submiss
 |---|---|---|---|
 | R1 | **App Store rejection** for automating third-party services / employment-application handling | High | Auto-submit restricted to allowlisted public ATS endpoints with no credential custody and no ToS-prohibited platform (§6.5, §10.1); volume caps (§6.5.3); no LinkedIn/Indeed automation at all (D2). Guideline 5.2.2 requires proof of authorization on request; **Phase 0 finding (2026-08-31, `compliance/app-store-assessment.md`)**: confirmed for the *reading* side (documented Job Board APIs), but the *submission* side needs a per-ATS terms confirmation before T067 — mitigation is conditional, not fully closed. |
 | R2 | **We are building what our design reference refuses to build.** career-ops declines auto-submit as unacceptable use | High | Owned by us end-to-end, so no licence or contribution question arises — but the *reason* for its refusal (ToS exposure, employer-side harm) applies to us regardless of who wrote the code. Mitigated by the ATS allowlist, no credential custody, volume caps, and a Functional Analyst compliance review (T0-series tasks). |
+| R12 | **Auto-submit allowlist is Greenhouse-only, not "the 4 ATS platforms"** — a premise this design carried since rev 1 didn't survive checking live | **New (2026-09-01), Medium** | T064 verified each ATS's form-schema API before writing a reader (same discipline R11/JobsDB HK taught): only Greenhouse's is genuinely public. Lever's own docs disclaim exposing custom questions; Ashby's schema needs basic auth + `jobsRead`; Workable's form-fields endpoint is part of its authenticated employer API. `apply-route.ts`'s allowlist narrowed accordingly — real auto-submit coverage is materially smaller than §6.3's original framing implied. `BLOCKERS.md` 2026-09-01 has options if broader coverage matters later (partner API access is a business conversation, not an engineering one). |
 | R3 | **Trademark** — product naming | **Medium (renamed 2026-09-01, search still owed)** | The prior name, Swipe2Work, collided with `swipe2work.ai` (Germany, same concept, nearly identical name — `compliance/naming-attribution.md`). Renamed to **Fyndra**; the wider descriptive-name space (swipe/hire/career combos) proved saturated with live competitors during the search that surfaced the replacement, which is itself informative about this risk category. A WebSearch is still not a trademark clearance — a real search (EUIPO/USPTO/HK-TW registries) is needed before any external use of "Fyndra". Appendix B4 updated accordingly. |
 | R4 | **104.com.tw anti-bot / ToS** | High | Public JSON endpoint first; honour robots/Crawl-delay/429; **never** circumvent bot protection — a source that blocks us is dropped (§6.3). **Phase 0 finding (2026-08-31)**: robots.txt, homepage, and ToS all returned HTTP 403 to every fetch attempt during compliance review — the site could not even be read. **2026-08-31, risk-acceptance-log.md**: Product accepted the *ToS* risk generally for HK/TW sourcing, but this is explicitly narrower than that — the 403 is active bot detection, not a ToS-only question, and defeating it is its own decision, not yet made. T088 stays blocked pending investigation of *why* it 403s. |
 | R5 | **CJK matching silently degrades** (§10.2) | High | Segmentation before keyword ops; test fixtures in zh-Hant with asserted non-empty extraction, so degradation fails a test instead of shipping. |
@@ -533,7 +534,7 @@ cloud deployment is Phase 2's first task — not a detail to discover at submiss
 | **0** | Compliance: per-source ToS review, App Store guideline assessment, PDPO/PDPA retention policy, trademark clearance | Functional Analyst sign-off; sourcing and auto-submit unblocked |
 | **1a** | Auth, CV intake (PDF + DOCX), profile confirm, Tier-1 sourcing (JobsDB HK + Yourator + ATS), deterministic pre-rank, swipe feed | Device demo: upload CV → swipe a real HK/TW feed |
 | **1b** | Apply: review path + answer sheet, sensitive carve-out, status list/timeline, user-reported status, APNs | Device demo: right swipe → reviewed submission → status visible |
-| **1c** | Auto-submit for allowlisted ATS, volume caps, 104.com.tw provider | Auto-submit succeeds on a real Greenhouse/Lever posting within caps |
+| **1c** | Auto-submit for allowlisted ATS (Greenhouse only — see R12), volume caps, 104.com.tw provider | Auto-submit succeeds on a real Greenhouse posting within caps |
 | **2** | Cloud deployment, TestFlight, remaining TW/HK providers, multilingual embeddings, scanned-PDF OCR, mailbox-based status detection | Distributable build |
 
 ---

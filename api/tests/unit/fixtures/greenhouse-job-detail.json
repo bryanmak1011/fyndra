@@ -1,0 +1,95 @@
+{
+  "questions": [
+    {
+      "description": null,
+      "label": "First Name",
+      "required": true,
+      "fields": [
+        {
+          "name": "first_name",
+          "type": "input_text",
+          "values": []
+        }
+      ]
+    },
+    {
+      "description": null,
+      "label": "Resume/CV",
+      "required": true,
+      "fields": [
+        {
+          "name": "resume",
+          "type": "input_file",
+          "values": []
+        },
+        {
+          "name": "resume_text",
+          "type": "textarea",
+          "values": []
+        }
+      ]
+    },
+    {
+      "description": null,
+      "label": "Are you subject to any employment agreements and/or post-employment restrictions with your current employer or a past employer?",
+      "required": true,
+      "fields": [
+        {
+          "name": "question_36101207002",
+          "type": "multi_value_single_select",
+          "values": [
+            {
+              "label": "Yes",
+              "value": 1
+            },
+            {
+              "label": "No",
+              "value": 0
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "description": null,
+      "label": "Will you now or in the future require sponsorship for a visa to remain in your current location?",
+      "required": true,
+      "fields": [
+        {
+          "name": "question_36101209002",
+          "type": "multi_value_single_select",
+          "values": [
+            {
+              "label": "No",
+              "value": 239207523002
+            },
+            {
+              "label": "Yes, Netherlands Highly Skilled Migrant Visa",
+              "value": 239207524002
+            },
+            {
+              "label": "Yes, Ireland Highly Skilled Worker Visa",
+              "value": 239207525002
+            },
+            {
+              "label": "Yes, EU Blue Card",
+              "value": 239207526002
+            },
+            {
+              "label": "Yes, USMCA Professional (TN) Visa (USA)",
+              "value": 239207527002
+            },
+            {
+              "label": "Yes, F-1 Visa OPT (USA)",
+              "value": 239207528002
+            },
+            {
+              "label": "Yes, but not one of the visas listed here",
+              "value": 239207529002
+            }
+          ]
+        }
+      ]
+    }
+  ]
+}
