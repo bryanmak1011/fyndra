@@ -1,23 +1,23 @@
-# Swipe2Work iOS
+# Fyndra iOS
 
 Swift 6, SwiftUI, iOS 17+. See [../specs/001-job-swipe-apply/](../specs/001-job-swipe-apply/) for
 the full design.
 
 ## What exists today
 
-- **`Swipe2WorkCore/`** — a standalone Swift Package with no SwiftUI/UIKit
+- **`FyndraCore/`** — a standalone Swift Package with no SwiftUI/UIKit
   dependency: the `APIClient` (URLSession, 30s/60s timeouts, exponential
   backoff on 5xx, bearer-token injection) and the contract models. Builds
   and tests with plain SwiftPM:
 
   ```bash
-  cd Swipe2WorkCore
+  cd FyndraCore
   swift build   # verified — compiles clean on Swift 6.3
   swift test    # NOT runnable in a Command-Line-Tools-only environment —
                  # see below. Runs fine in Xcode.
   ```
 
-- **`Swipe2Work/`** — the app target's directory structure only
+- **`Fyndra/`** — the app target's directory structure only
   (`App/`, `Features/{Profile,JobFeed,ApplicationTracking,Settings}/`,
   `Core/DesignSystem/`, `Resources/{en,zh-Hant}.lproj/`). No `.xcodeproj` and
   no source files yet — see below.
@@ -32,11 +32,11 @@ consequences:
 1. **No `.xcodeproj` was generated.** Hand-authoring a `.pbxproj` reliably
    without Xcode is impractical and error-prone; a generator like XcodeGen
    isn't installed either. **Action needed**: open Xcode, "File → New →
-   Project → App" (iOS, SwiftUI, Swift 6, name `Swipe2Work`, min deployment
-   iOS 17.0), save it into this `ios/Swipe2Work/` directory structure
+   Project → App" (iOS, SwiftUI, Swift 6, name `Fyndra`, min deployment
+   iOS 17.0), save it into this `ios/Fyndra/` directory structure
    (Xcode will offer to use the existing folder), then add
-   `Swipe2WorkCore` as a local Swift Package dependency (File → Add Package
-   Dependencies → Add Local... → select `../Swipe2WorkCore`).
+   `FyndraCore` as a local Swift Package dependency (File → Add Package
+   Dependencies → Add Local... → select `../FyndraCore`).
 2. **`swift test` doesn't run here** — this toolchain has neither `XCTest`
    nor the `Testing` (swift-testing) module available standalone; both
    normally ship with Xcode.app. `swift build` still fully compiles and

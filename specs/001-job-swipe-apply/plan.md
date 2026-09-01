@@ -11,7 +11,7 @@ finding-by-finding record of what changed in rev 2 and why.
 
 ## Summary
 
-Deliver **Swipe2Work**, a swipe-to-apply job search app for the **Hong Kong and Taiwan** markets:
+Deliver **Fyndra**, a swipe-to-apply job search app for the **Hong Kong and Taiwan** markets:
 a native iOS client backed by a purpose-built local API + worker. The API owns all app data
 (profiles, swipes, applications, status) in PostgreSQL and is the single integration point for the
 iOS app.
@@ -159,7 +159,7 @@ api/
 └── docker-compose.yml     # postgres + api + worker, local named volume
 
 ios/
-├── Swipe2Work/
+├── Fyndra/
 │   ├── App/                    # entry point, BaseURLProvider (DEBUG: localhost|ngrok, RELEASE: cloud)
 │   ├── Features/
 │   │   ├── Profile/            # CV upload, keyword/YoE review + edit
@@ -172,7 +172,7 @@ ios/
 │   │   ├── DesignSystem/       # tokens, shared components (pending TODO(UIUX_STANDARDS))
 │   │   └── Localization/       # en + zh-Hant
 │   └── Resources/{en.lproj, zh-Hant.lproj}/
-└── Swipe2WorkTests/
+└── FyndraTests/
     ├── Unit/
     ├── Snapshot/               # incl. zh-Hant at large Dynamic Type sizes
     └── UITests/
@@ -180,7 +180,7 @@ ios/
 
 **Structure Decision**: Option 3 (Mobile + API), matching the user-supplied Phase 1 architecture:
 `api/` hosts the Dockerized Node/Express/PostgreSQL/Prisma service plus a worker process from the
-same image; `ios/Swipe2Work/` hosts the SwiftUI client, with its test target nested inside `ios/`
+same image; `ios/Fyndra/` hosts the SwiftUI client, with its test target nested inside `ios/`
 (rev 2 fix — it was previously dedented out of the app tree). The two communicate exclusively over
 the OpenAPI-aligned REST contract in `contracts/`, with the base URL switched by build
 configuration (DEBUG → localhost or ngrok tunnel, RELEASE → future cloud endpoint) per the

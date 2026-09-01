@@ -9,7 +9,7 @@
 **Revision note**: Rev 2 corrected three premises that were factually wrong after career-ops was
 read at source. **Rev 3** demotes career-ops from a runtime dependency to a **design reference** —
 we build the scrapers, submitter, CV parser, and tracker ourselves — which lifts rev 2's DOCX
-restriction (that was career-ops's limit, not ours). Product name is **Swipe2Work**. Target market
+restriction (that was career-ops's limit, not ours). Product name is **Fyndra**. Target market
 is **Hong Kong and Taiwan**. See
 [SDD.md Appendix A](./SDD.md#appendix-a-review-of-earlier-planning) for the finding-by-finding
 record.

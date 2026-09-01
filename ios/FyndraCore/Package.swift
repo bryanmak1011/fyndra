@@ -7,13 +7,13 @@ import PackageDescription
 // required — and so it's a candidate for sharing with a future Android
 // client's business-logic layer if that's ever worth doing.
 let package = Package(
-    name: "Swipe2WorkCore",
+    name: "FyndraCore",
     platforms: [.iOS(.v17), .macOS(.v14)],
     products: [
-        .library(name: "Swipe2WorkCore", targets: ["Swipe2WorkCore"])
+        .library(name: "FyndraCore", targets: ["FyndraCore"])
     ],
     targets: [
-        .target(name: "Swipe2WorkCore"),
-        .testTarget(name: "Swipe2WorkCoreTests", dependencies: ["Swipe2WorkCore"]),
+        .target(name: "FyndraCore"),
+        .testTarget(name: "FyndraCoreTests", dependencies: ["FyndraCore"]),
     ]
 )

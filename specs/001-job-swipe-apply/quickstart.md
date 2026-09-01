@@ -84,10 +84,10 @@ environment variable (DEBUG configuration only, per the plan's Migration Control
 
 ```bash
 cd ios
-open Swipe2Work.xcodeproj      # or .xcworkspace if SPM workspace is used
+open Fyndra.xcodeproj      # or .xcworkspace if SPM workspace is used
 ```
 
-Run the `Swipe2Work` scheme on Simulator (uses `localhost` automatically) or a physical device
+Run the `Fyndra` scheme on Simulator (uses `localhost` automatically) or a physical device
 (uses the ngrok URL). Expected: app launches to an empty-profile state prompting CV upload.
 
 ## 4. Validate User Story 1 — CV upload
@@ -157,7 +157,7 @@ cd api && npm test              # Jest unit + Supertest integration
 cd api && npm run test:contract # validates responses against contracts/openapi.yaml
 
 # iOS
-cd ios && xcodebuild test -scheme Swipe2Work -destination 'platform=iOS Simulator,name=iPhone 16'
+cd ios && xcodebuild test -scheme Fyndra -destination 'platform=iOS Simulator,name=iPhone 16'
 ```
 
 Expected: all suites green before moving to `/speckit-tasks`.

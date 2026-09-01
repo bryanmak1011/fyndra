@@ -1,6 +1,6 @@
 import Foundation
 
-/// One request against the Swipe2Work API, described declaratively so
+/// One request against the Fyndra API, described declaratively so
 /// `APIClient` can stay a single, generic `send` method rather than growing
 /// one hand-written method per endpoint.
 public struct APIRequest<Response: Decodable & Sendable>: Sendable {

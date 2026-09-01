@@ -1,4 +1,4 @@
-# Swipe2Work API + Worker
+# Fyndra API + Worker
 
 TypeScript / Express / Prisma / PostgreSQL. See [../specs/001-job-swipe-apply/](../specs/001-job-swipe-apply/)
 for the full design (SDD.md, contracts/openapi.yaml, data-model.md).

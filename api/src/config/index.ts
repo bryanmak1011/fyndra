@@ -17,7 +17,7 @@ export const config = {
   apns: {
     keyId: process.env.APNS_KEY_ID ?? '',
     teamId: process.env.APNS_TEAM_ID ?? '',
-    bundleId: process.env.APNS_BUNDLE_ID ?? 'com.swipe2work.app',
+    bundleId: process.env.APNS_BUNDLE_ID ?? 'com.fyndra.app',
     privateKeyPath: process.env.APNS_PRIVATE_KEY_PATH ?? '',
   },
 };

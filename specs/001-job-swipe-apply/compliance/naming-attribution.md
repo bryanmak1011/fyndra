@@ -6,6 +6,16 @@ verdict this task was expected to reach** · **Date**: 2026-08-31
 that part, per task scope) plus a live WebSearch for the exact string "Swipe2Work" (required by task
 scope, to check for existing use). This document gates SDD §12 R3 and Appendix B4.
 
+> **Addendum, 2026-09-01 — the product was renamed to "Fyndra" as a result of this finding.**
+> Everything below is preserved exactly as written on 2026-08-31 and refers throughout to
+> **"Swipe2Work"**, the product's name at the time — do not read it as being about the current
+> name. The rename decision itself, including a wider search that found the whole descriptive
+> swipe/hire/career naming category saturated with live competitors, is recorded in
+> [SDD.md rev 3.2](../SDD.md) and [tasks.md](../tasks.md)'s Phase 0 status note. **"Fyndra" has
+> not itself been run through this document's process** — a repeat of the WebSearch below, and
+> the still-owed real trademark clearance search (§2, §3), apply to "Fyndra" going forward, not
+> only to "Swipe2Work".
+
 ---
 
 ## 1. career-ops attribution — design-artifact review

@@ -1,6 +1,6 @@
 openapi: 3.0.3
 info:
-  title: Swipe2Work API
+  title: Fyndra API
   version: 0.3.0-phase1
   description: >
     Contract between the iOS client and the local Node/Express/PostgreSQL server (Phase 1),

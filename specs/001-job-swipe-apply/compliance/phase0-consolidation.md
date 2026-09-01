@@ -2,6 +2,11 @@
 
 **Owner**: Functional Analyst · **Status**: Draft for review · **Date**: 2026-08-31
 
+> **Addendum, 2026-09-01**: the "Product naming" row below (and `naming-attribution.md`, which it
+> cites) refers to **"Swipe2Work"**, the product's name on 2026-08-31. It has since been renamed
+> to **Fyndra** — see `naming-attribution.md`'s own addendum and SDD.md rev 3.2. This document is
+> otherwise preserved as originally written.
+
 This is the Phase 0 compliance gate deliverable required by `tasks.md` T007: it consolidates T001–T006
 into one GO/NO-GO table per capability, and states what engineering is blocked vs. unblocked. Full
 reasoning and quoted sources are in the individual documents in this directory: `source-assessment.md`,

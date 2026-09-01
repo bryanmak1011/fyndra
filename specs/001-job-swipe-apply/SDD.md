@@ -19,13 +19,25 @@
 > **Rev 3.1 — Phase 0 compliance research landed (2026-08-31) and it is not a clean pass.**
 > Two premises load-bearing to §6.3's "Tier 1 is cheap" framing did not survive a real ToS/robots
 > read: **JobsDB HK's ToS reserves automated access to a partner API** (R11) and **104.com.tw
-> could not even be accessed** (R4). A previously-"resolved" decision has reopened: **the product
-> name collides with an active third-party product**, `swipe2work.ai` (R3, B4, still open). Full
-> findings are in [`compliance/`](./compliance/).
+> could not even be accessed** (R4). A previously-"resolved" decision reopened: the product's
+> then-name, **Swipe2Work**, collided with an active third-party product, `swipe2work.ai`
+> (Germany) — same swipe-to-apply-with-AI concept, nearly identical name. Full findings are in
+> [`compliance/`](./compliance/), preserved as written at the time.
 >
 > **Product explicitly accepted the JobsDB HK ToS risk** (`compliance/risk-acceptance-log.md`,
 > 2026-08-31) — T046 is built. 104.com.tw is **not** covered by that decision: its 403 is active
 > bot detection, a narrower and larger question than a ToS risk, and remains open (B9).
+>
+> **Rev 3.2 — renamed Swipe2Work → Fyndra (2026-09-01).** Resolves R3/B4: a WebSearch across the
+> swipe/hire/career naming space found the category saturated with live competitors (swipejobs.com,
+> JobSwipe, SwipeHire, CareerSwipe, Roleup, Jobli, Workdeck all have real App Store listings, beyond
+> the original swipe2work.ai finding) — no descriptive name in that space is likely to clear a real
+> trademark search either. "Fyndra" returned no existing product/company; still only a WebSearch,
+> not a registry search, so external use (App Store Connect, domain, marketing) still waits on one
+> per B4. This document, the codebase, and the GitHub repository (now
+> `github.com/bryanmak1011/fyndra`) are renamed throughout. `compliance/naming-attribution.md` is
+> left as originally written — it is the historical record of *why* "Swipe2Work" was rejected, and
+> renaming its references to "Fyndra" would make that record misleading.
 
 ---
 
@@ -113,7 +125,7 @@ Three deployable units in Phase 1, all on the developer's machine:
 
 | Unit | Runtime | Responsibility |
 |---|---|---|
-| `ios/Swipe2Work` | iOS 17+, Swift 6 | Presentation only. No business rules, no ranking, no scoring. |
+| `ios/Fyndra` | iOS 17+, Swift 6 | Presentation only. No business rules, no ranking, no scoring. |
 | `api` | Node 22 LTS / Express / TS in Docker | Auth, REST contract, matching, sourcing orchestration, apply orchestration. |
 | `worker` | same image, separate process | Queued long jobs: crawl, CV parse, match rebuild, submit, status poll. |
 | `postgres` | Postgres 16 in Docker, named volume | System of record — single source of truth. |
@@ -158,12 +170,12 @@ api/
 ├── prisma/{schema.prisma,migrations/}
 └── tests/{contract,integration,unit}/
 
-ios/Swipe2Work/
+ios/Fyndra/
 ├── App/                   # entry, BaseURLProvider (DEBUG: localhost|ngrok, RELEASE: cloud)
 ├── Features/{Profile,JobFeed,ApplicationTracking,Settings}/
 ├── Core/{Networking,Models,DesignSystem,Localization}/
 └── Resources/{en.lproj,zh-Hant.lproj}/
-ios/Swipe2WorkTests/{Unit,Snapshot,UITests}/
+ios/FyndraTests/{Unit,Snapshot,UITests}/
 ```
 
 ---
@@ -502,7 +514,7 @@ cloud deployment is Phase 2's first task — not a detail to discover at submiss
 |---|---|---|---|
 | R1 | **App Store rejection** for automating third-party services / employment-application handling | High | Auto-submit restricted to allowlisted public ATS endpoints with no credential custody and no ToS-prohibited platform (§6.5, §10.1); volume caps (§6.5.3); no LinkedIn/Indeed automation at all (D2). Guideline 5.2.2 requires proof of authorization on request; **Phase 0 finding (2026-08-31, `compliance/app-store-assessment.md`)**: confirmed for the *reading* side (documented Job Board APIs), but the *submission* side needs a per-ATS terms confirmation before T067 — mitigation is conditional, not fully closed. |
 | R2 | **We are building what our design reference refuses to build.** career-ops declines auto-submit as unacceptable use | High | Owned by us end-to-end, so no licence or contribution question arises — but the *reason* for its refusal (ToS exposure, employer-side harm) applies to us regardless of who wrote the code. Mitigated by the ATS allowlist, no credential custody, volume caps, and a Functional Analyst compliance review (T0-series tasks). |
-| R3 | **Trademark** — product naming | **Medium (raised from Low, 2026-08-31)** | Clear of career-ops's mark. **Not clear of third-party use**: Phase 0 research (`compliance/naming-attribution.md`) found `swipe2work.ai` — an active German product describing itself as AI-powered swipe-to-apply with CV upload and automated applications, i.e. the same concept under nearly the same name. A WebSearch is not a trademark clearance; a real search (EUIPO/USPTO/HK-TW registries) is needed before any external use of "Swipe2Work" (App Store Connect, domain, marketing). Reopens Appendix B4. |
+| R3 | **Trademark** — product naming | **Medium (renamed 2026-09-01, search still owed)** | The prior name, Swipe2Work, collided with `swipe2work.ai` (Germany, same concept, nearly identical name — `compliance/naming-attribution.md`). Renamed to **Fyndra**; the wider descriptive-name space (swipe/hire/career combos) proved saturated with live competitors during the search that surfaced the replacement, which is itself informative about this risk category. A WebSearch is still not a trademark clearance — a real search (EUIPO/USPTO/HK-TW registries) is needed before any external use of "Fyndra". Appendix B4 updated accordingly. |
 | R4 | **104.com.tw anti-bot / ToS** | High | Public JSON endpoint first; honour robots/Crawl-delay/429; **never** circumvent bot protection — a source that blocks us is dropped (§6.3). **Phase 0 finding (2026-08-31)**: robots.txt, homepage, and ToS all returned HTTP 403 to every fetch attempt during compliance review — the site could not even be read. **2026-08-31, risk-acceptance-log.md**: Product accepted the *ToS* risk generally for HK/TW sourcing, but this is explicitly narrower than that — the 403 is active bot detection, not a ToS-only question, and defeating it is its own decision, not yet made. T088 stays blocked pending investigation of *why* it 403s. |
 | R5 | **CJK matching silently degrades** (§10.2) | High | Segmentation before keyword ops; test fixtures in zh-Hant with asserted non-empty extraction, so degradation fails a test instead of shipping. |
 | R6 | **Feed runs dry** in a bounded two-city market | **High (raised from Med, 2026-08-31)** | The "Tier 1 breadth first" mitigation assumed JobsDB HK was cheap and proven; **Phase 0 finding**: JobsDB HK is **NO-GO as designed** (R11) — its ToS reserves automated access to a partner API we don't have. HK-market breadth now rests on ATS providers alone (MNC roles) plus whatever HK second-tier sources clear NEEDS-LEGAL-REVIEW. Designed end-of-feed state and broaden-criteria prompt remain in place, but the "breadth" half of the mitigation is materially weaker than assumed until R11 resolves. |
@@ -549,7 +561,7 @@ were factually wrong in the artifacts I generated earlier.
 | 14 | No risk register; ToS/App Store unaddressed | career-ops's own legal position is explicit and relevant | §12 |
 | 15 | Plan: RELEASE → "future cloud endpoint" | Means no distributable build in Phase 1 | Stated as an exit constraint (§11.3) |
 | 16 | Constitution check passed without noting backend gap | Constitution is iOS-only | R7 + amendment action |
-| 17 | `ios/` tree put `Swipe2WorkTests/` outside the app tree | Structural error | Fixed (§5) |
+| 17 | `ios/` tree put `FyndraTests/` outside the app tree | Structural error | Fixed (§5) |
 
 **Not changed on review** (deliberate): iOS 17 floor (required by `@Observable`; broader than the
 constitution's two-version policy, and it resolves the constitution's `TODO(MIN_IOS_VERSION)`);
@@ -567,7 +579,7 @@ per-user configurable submission mode.
 | 22 | HK/TW Tier 1 = "one `portals.yml` entry" reusing career-ops providers | We write thin providers against the same **public endpoints** career-ops documented. Reconnaissance reused, not code (§6.3) |
 | 23 | career-ops's `web/` treated as an RCE risk to contain | **Not applicable** — nothing of career-ops is deployed (§10.1) |
 | 24 | Employer replies detected via career-ops's reply loop | **User-reported status** in Phase 1; mailbox scanning deferred to Phase 2 with its own consent scope (§9) |
-| 25 | Product name undecided (open decision B4) | **Swipe2Work**, from the project repository. Resolves B4 and defuses R3 |
+| 25 | Product name undecided (open decision B4) | Rev 3.1: named **Swipe2Work**, from the project repository — reopened B4 same day when it collided with `swipe2work.ai`. Rev 3.2 (2026-09-01): renamed to **Fyndra** after a wider search found the whole descriptive-name category saturated. A real trademark clearance search is still owed before external use (B4 stays open for that reason, just no longer blocking internal work). |
 
 ---
 
@@ -578,7 +590,7 @@ per-user configurable submission mode.
 | B1 | Per-source ToS/robots assessment | **Done** (2026-08-31, `compliance/source-assessment.md`) — 4 of 12 sources GO (Yourator, 4× ATS-read), 2 NO-GO outright (JobsDB HK, cakeresume.com), 1 moot (meet.jobs shut down), 4 NEEDS-LEGAL-REVIEW (104.com.tw, ctgoodjobs.hk, cpjobs.com, 1111.com.tw) | §6.3, R4, R11 |
 | B2 | LLM provider + budget per user/day | Product | §6.7 |
 | B3 | Constitution amendment for backend principles (`/speckit-constitution`) | Tech lead | R7 |
-| B4 | Product name | **Reopened** (2026-08-31) — `swipe2work.ai` (Germany) is an active, conceptually identical product under nearly the same name (`compliance/naming-attribution.md`). Needs Product + a real trademark clearance search, not just a repo-name adoption. | R3 |
+| B4 | Product name | **Renamed to Fyndra** (2026-09-01) after Swipe2Work was found to collide with `swipe2work.ai` (`compliance/naming-attribution.md`). A **real trademark clearance search is still owed** before any external use — a second WebSearch informing the rename is not a substitute, it only found no *obvious* collision. | R3 |
 | B5 | Retention period for CV/PII under HK PDPO and TW PDPA | **Resolved** (2026-08-31) — account deletion + 30 days, then hard delete (`compliance/privacy-policy-requirements.md` §4) | §10.1 |
 | B6 | Whether `handed_off` applications count against volume caps | **Resolved** (2026-08-31) — excluded from both caps (`compliance/volume-policy.md` §3) | §6.5.3 |
 | B7 | Whether scanned-PDF OCR enters Phase 2 scope | Product | §9 |

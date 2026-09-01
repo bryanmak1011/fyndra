@@ -5,7 +5,7 @@ now ours (lower snake_case; `Evaluated`/`SKIP` dropped) and DOCX is supported ag
 [SDD §7](./SDD.md#7-data-design) for the rationale behind each delta.
 
 Entities below are owned by the `api` Postgres database (via Prisma) and mirrored as Swift value
-types in `ios/Swipe2Work/Core/Models` via the API contract. Field lists are the fields this feature
+types in `ios/Fyndra/Core/Models` via the API contract. Field lists are the fields this feature
 needs — not an exhaustive schema.
 
 Postgres is the **only** store and the single source of truth. Nothing is mirrored to or read from

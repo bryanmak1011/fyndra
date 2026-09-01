@@ -1,8 +1,8 @@
 {
-  "name": "swipe2work-api",
+  "name": "fyndra-api",
   "version": "0.1.0",
   "private": true,
-  "description": "Swipe2Work API + worker — HK/TW swipe-to-apply job search backend",
+  "description": "Fyndra API + worker — HK/TW swipe-to-apply job search backend",
   "type": "module",
   "engines": {
     "node": ">=22.0.0"

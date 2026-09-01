@@ -3,7 +3,7 @@ import { logger } from '../lib/logger.js';
 // Identifies us honestly to every source we crawl — the opposite of the
 // browser-spoofing shortcut this session explicitly declined to take for
 // JobsDB HK. See SDD.md §6.3 and compliance/risk-acceptance-log.md.
-const USER_AGENT = 'Swipe2WorkBot/0.1 (+https://github.com/bryanmak1011/swipe2work)';
+const USER_AGENT = 'FyndraBot/0.1 (+https://github.com/bryanmak1011/fyndra)';
 
 export class SsrfError extends Error {}
 

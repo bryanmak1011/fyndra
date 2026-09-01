@@ -171,7 +171,7 @@ list than HK's.
   keep them returning the *actual* stored data, not a derived summary, so "access" is meaningful.
 - A **self-service account/CV deletion path** is required to satisfy TW PDPA Article 3's erasure
   right and HK DPP2's "not kept longer than necessary" duty — this should be reachable from
-  `ios/Swipe2Work/Features/Settings/` (not support-ticket-only), triggering the retention clock in §4.
+  `ios/Fyndra/Features/Settings/` (not support-ticket-only), triggering the retention clock in §4.
 - **Correction**: FR-003's existing design (user confirms/edits CV-derived keywords, corrections
   "never applied silently") already satisfies DPP6/Article 3's correction right for the derived
   profile; the underlying uploaded CV file itself should also be replaceable (re-upload), not just

@@ -1,5 +1,5 @@
 import XCTest
-@testable import Swipe2WorkCore
+@testable import FyndraCore
 
 /// Routes every request through a canned response instead of the network,
 /// so these tests exercise real `APIClient` decoding/retry/error-mapping

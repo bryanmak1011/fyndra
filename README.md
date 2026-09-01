@@ -1,4 +1,4 @@
-# Swipe2Work
+# Fyndra
 
 A mobile job-search app for **Hong Kong and Taiwan**: upload a CV, get a ranked feed of relevant
 roles, swipe left to reject and right to apply. The backend prepares each application from your
@@ -61,5 +61,5 @@ LinkedIn and Indeed are deliberately excluded: both prohibit automated access.
 
 Design informed by [career-ops](https://github.com/santifer/career-ops) (MIT) — specifically its
 job-source reconnaissance, provider doctrine, application-pipeline vocabulary, and sensitive-field
-carve-out. Swipe2Work ships none of its code and is not affiliated with or endorsed by that
+carve-out. Fyndra ships none of its code and is not affiliated with or endorsed by that
 project.
