@@ -1,21 +1,31 @@
 <!--
 SYNC IMPACT REPORT
 ==================
-Version change: [unversioned template] → 1.0.0
+Version change: 1.0.0 → 1.1.0
+Modified principles: N/A (no existing principle redefined or removed)
 Added sections:
-  - Core Principles (I–V: Code Quality, Test-First, UX Consistency, Performance, iOS Platform Standards)
-  - Quality Gates
-  - Governance
-Modified principles: N/A (initial ratification)
+  - Core Principles VI. Backend Engineering Standards (NON-NEGOTIABLE)
+  - Quality Gates: three backend-specific gate lines
 Removed sections: N/A
-Deferred TODOs:
-  - TODO(PROJECT_NAME): Product name not yet defined — update when product direction is provided.
-  - TODO(UIUX_STANDARDS): Design system tokens, component library, and HIG specifics deferred — update via /speckit-constitution when UX skills are added.
-  - TODO(TOOLCHAIN): Specific Xcode version, dependency manager, and CI tooling deferred — update when development environment is defined.
-  - TODO(MIN_IOS_VERSION): Minimum supported iOS version to be confirmed with product direction.
+Resolved TODOs:
+  - TODO(PROJECT_NAME): resolved — product is Fyndra. Internal/repo use only; external use
+    (App Store Connect, domain, marketing) is blocked on a real trademark clearance search
+    (see specs/001-job-swipe-apply/SDD.md rev 3.2, Appendix B4).
+  - TODO(MIN_IOS_VERSION): resolved — iOS 17+, per specs/001-job-swipe-apply/plan.md.
+Deferred TODOs (unchanged, still genuinely undecided):
+  - TODO(UIUX_STANDARDS): Design system tokens, component library, and HIG specifics deferred —
+    update via /speckit-constitution when UX skills are added.
+  - TODO(TOOLCHAIN): Specific Xcode version, dependency manager, and CI tooling deferred — update
+    when development environment is defined.
+Rationale for this amendment: this feature (specs/001-job-swipe-apply) ships a real backend
+(api/ — Node/TypeScript/Express/Prisma/PostgreSQL), not just an iOS client. The constitution was
+iOS-only and had no governance for server-side code, so backend PRs had no constitutional gate to
+be checked against. Principle VI codifies conventions this codebase already follows in practice
+(real-dependency TDD, enforced coverage thresholds, verify-before-build, untrusted-text discipline
+for LLM-touching code) rather than introducing new, unproven rules. Tracked as tasks.md T092.
 -->
 
-# iOS App Constitution
+# Fyndra Constitution
 
 ## Core Principles
 
@@ -30,15 +40,15 @@ Every line of code merged into the main branch MUST meet these standards without
 - **No dead code**: Commented-out code blocks, unreachable branches, and unused symbols MUST be
   removed before merge — not deferred.
 - **Minimal dependencies**: Every third-party library MUST be explicitly justified. Prefer platform
-  APIs (Foundation, SwiftUI, UIKit) over external packages unless the benefit is clear and
-  the library is actively maintained.
+  APIs (Foundation, SwiftUI, UIKit; Node built-ins) over external packages unless the benefit is
+  clear and the library is actively maintained.
 - **Cyclomatic complexity**: Functions MUST NOT exceed a complexity score of 10. Refactor before
   submitting for review.
-- **Immutability by default**: Prefer `let` over `var`, value types over reference types. Mutability
-  MUST be justified.
+- **Immutability by default**: Prefer `let`/`const` over `var`, value types over reference types.
+  Mutability MUST be justified.
 
-**Rationale**: Unmaintainable code is a compounding liability on a mobile product where iteration
-speed and reliability are both critical. These rules protect the team's ability to move fast safely.
+**Rationale**: Unmaintainable code is a compounding liability on a product where iteration speed
+and reliability are both critical. These rules protect the team's ability to move fast safely.
 
 ### II. Test-First Development (NON-NEGOTIABLE)
 
@@ -57,8 +67,8 @@ Testing is not an afterthought — it is part of the definition of done.
 - **Tests run in CI**: The full test suite MUST pass in CI before any PR can be merged. A failing
   test is a blocker — not a warning.
 
-**Rationale**: App Store releases are not easily rolled back. High test confidence is the primary
-defense against shipping defects to users.
+**Rationale**: App Store releases are not easily rolled back, and a live server has real users
+mid-request. High test confidence is the primary defense against shipping defects.
 
 ### III. User Experience Consistency (NON-NEGOTIABLE)
 
@@ -112,8 +122,8 @@ are expensive; catching them in CI is cheap.
 
 The app MUST be a good citizen on Apple's platform.
 
-- **Supported OS versions**: The app MUST support the current and previous major iOS versions
-  (e.g., iOS 17 and iOS 18 at launch). TODO(MIN_IOS_VERSION): Confirm with product direction.
+- **Supported OS versions**: The app MUST support iOS 17 and later, per
+  specs/001-job-swipe-apply/plan.md. Update this line if the minimum is later raised.
 - **No private APIs**: Use of any private Apple APIs is prohibited. Violations will cause App
   Store rejection and are non-negotiable blockers.
 - **Privacy by design**: Data collection MUST be minimized to what is functionally required.
@@ -129,6 +139,45 @@ The app MUST be a good citizen on Apple's platform.
 **Rationale**: Non-compliance with Apple's platform rules blocks distribution. Privacy violations
 damage user trust and carry regulatory risk.
 
+### VI. Backend Engineering Standards (NON-NEGOTIABLE)
+
+The server (`api/` — Node/TypeScript/Express/Prisma/PostgreSQL) is held to the same non-negotiable
+bar as the client, adapted to server-side reality.
+
+- **Test-first, real dependencies**: The TDD cycle in Principle II applies here too, with one
+  server-specific rule: tests MUST run against a real PostgreSQL database, not a mocked ORM layer.
+  Mock only at true external boundaries — third-party HTTP APIs, the LLM provider, the filesystem
+  — never the database. A passing test against a mock query result is not evidence the real query
+  works.
+- **Coverage threshold enforced in CI, not just claimed**: Business logic MUST maintain ≥ 80%
+  line/statement/function coverage and ≥ 70% branch coverage, enforced via `coverageThreshold` in
+  `api/jest.config.js` (excluding thin process-bootstrap files, e.g. `server.ts`/`worker.ts`, which
+  are exercised through contract tests rather than unit coverage). A PR that drops below threshold
+  MUST close the gap with tests of real logic, not by weakening the gate.
+- **Verify external APIs before building against them**: Before writing any code that calls an
+  external HTTP API — a job-board source, an ATS provider, an LLM gateway — its actual
+  request/response shape MUST be confirmed live (via docs or a real call) before implementation
+  code is written against an assumed shape. Guessing at an undocumented endpoint, especially for
+  any action with a real-world side effect (submitting data on a user's behalf), is prohibited;
+  when verification isn't possible, the work MUST stop and the blocker MUST be recorded (see
+  `specs/001-job-swipe-apply/BLOCKERS.md`) rather than proceeding on an assumption.
+- **Untrusted external text is data, never instructions**: Any text sourced from outside this
+  codebase's control — a CV, a job description, an ATS question — that is passed to an LLM MUST be
+  explicitly framed as untrusted data (e.g. clearly delimited, with an explicit instruction not to
+  follow embedded directives) and MUST NOT be able to authorize a consequential action (submitting
+  an application, changing account state) on its own. Decisions gating a consequential action MUST
+  be made by deterministic code, not by an LLM call, wherever the decision can be expressed as one.
+- **No secrets in version control**: API keys, database credentials, and encryption keys MUST live
+  only in untracked `.env` files or a secrets manager, never in a committed file — including
+  `.env.example`, which documents variable names only, never real values.
+
+**Rationale**: The backend is not a thin API layer bolted onto the iOS app — it holds encrypted CV
+data, drives outbound requests to third-party services on a user's behalf, and is the system a
+compromised or adversarial input (a malicious CV, a hostile job posting) would actually reach. It
+needs the same rigor as the client, with rules shaped by where backend code actually fails: a
+mocked-out database hiding a broken query, an assumed API shape that was never real, and untrusted
+text being treated as trusted instructions.
+
 ## Quality Gates
 
 A feature or change is only considered **done** when all of the following are true:
@@ -143,6 +192,12 @@ A feature or change is only considered **done** when all of the following are tr
 - [ ] PR has been reviewed and approved by at least one other engineer.
 - [ ] CI pipeline is fully green (build, lint, test, snapshot diff).
 - [ ] No commented-out code or dead code added.
+- [ ] Backend: `api/jest.config.js` coverage thresholds pass against a real PostgreSQL database,
+      not a mocked one.
+- [ ] Backend: any new call to an external API is backed by a live-verified request/response
+      shape, not an assumption — cite the doc or call that confirmed it.
+- [ ] Backend: any new or changed prompt sent to an LLM keeps untrusted external text clearly
+      delimited as data, and no consequential action is gated on the LLM's output alone.
 
 ## Governance
 
@@ -167,6 +222,6 @@ a valid and expected reason to request changes.
 
 **Review cadence**: This constitution MUST be reviewed at the start of each major product phase
 or at minimum every 3 months, whichever comes first. The review MUST assess whether deferred
-TODOs (UX standards, toolchain, product scope) can be resolved.
+TODOs (UX standards, toolchain) can be resolved.
 
-**Version**: 1.0.0 | **Ratified**: 2026-08-28 | **Last Amended**: 2026-08-28
+**Version**: 1.1.0 | **Ratified**: 2026-08-28 | **Last Amended**: 2026-09-01

@@ -6,6 +6,22 @@ question for you.
 
 ---
 
+## 2026-09-01 — Firecrawl integration (T087) parked — needs an API key
+
+**Status**: Not started, not a code blocker — just needs a credential I don't have.
+
+T087 adds Firecrawl for JS-gated sources that plain fetch can't read. Same pattern as the
+OpenRouter key: I can implement and test this as soon as you supply a Firecrawl API key (and
+confirm which specific sources need it — everything sourced so far, Yourator plus the four ATS
+APIs, works fine over plain fetch, so this is genuinely optional until a JS-gated source is
+identified as worth adding). Parking rather than guessing at a key or skipping the "no CV/profile
+PII is ever sent to Firecrawl" assertion the task explicitly calls for.
+
+**Question for you**: do you have a Firecrawl key, and if so, is there a specific HK/TW source
+in mind that needs it, or should this stay parked until one comes up?
+
+---
+
 ## 2026-09-01 — 🛑 CRITICAL: no ATS platform supports true third-party auto-submission (T067)
 
 **Status**: Stopped. Not worked around. This is bigger than the Lever/Ashby/Workable finding
