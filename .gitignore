@@ -8,6 +8,9 @@ node_modules/
 dist/
 *.log
 
+# Local CV storage (encrypted PII — never committed regardless)
+api/data/
+
 # Xcode / Swift Package Manager
 build/
 DerivedData/

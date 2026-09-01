@@ -1,6 +1,7 @@
 import express from 'express';
 import { authRouter } from './routes/auth.js';
 import { devicesRouter } from './routes/devices.js';
+import { profileRouter } from './routes/profile.js';
 import { requireAuth } from './middleware/auth.js';
 import { errorHandler } from './middleware/error-handler.js';
 import { newCorrelationId } from './lib/logger.js';
@@ -20,9 +21,10 @@ export function createApp() {
 
   app.use('/v1/auth', authRouter);
   app.use('/v1/devices', requireAuth, devicesRouter);
+  app.use('/v1/profile', requireAuth, profileRouter);
 
-  // Feed/swipe/application/profile/cv routers are added in Phases 3-6
-  // (US1-US4) — see tasks.md.
+  // Feed/swipe/application routers are added in Phases 4-6 (US2-US4) —
+  // see tasks.md.
 
   app.use(errorHandler);
   return app;

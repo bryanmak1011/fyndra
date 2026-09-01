@@ -158,20 +158,20 @@ editable, and persist. Confirm a scanned PDF is rejected by reason.
 
 ### Tests for User Story 1 ⚠️ Write first, confirm they fail
 
-- [ ] T025 [P] [US1] Contract test for `POST /profile/cv`, `GET /profile/cv`, `GET/PATCH /profile` in `api/tests/contract/profile.test.ts`
+- [X] T025 [P] [US1] Contract test for `POST /profile/cv`, `GET /profile/cv`, `GET/PATCH /profile` in `api/tests/contract/profile.test.ts`
 - [X] T026 [P] [US1] Unit tests for text extraction in `api/tests/unit/cv-extract.test.ts` — text-layer PDF succeeds, **DOCX succeeds**, scanned PDF returns `no_text_layer`, password-protected returns `password_protected`
 - [X] T027 [P] [US1] Unit tests for CJK extraction in `api/tests/unit/cv-interpret-zhhant.test.ts` — a Traditional Chinese CV fixture MUST yield **non-empty** keywords and a YoE parsed from forms like `5 年以上工作經驗`. An empty result is a failure, not a pass (SDD R5)
-- [ ] T028 [P] [US1] Integration test for the full intake journey in `api/tests/integration/cv-intake.test.ts`
+- [X] T028 [P] [US1] Integration test for the full intake journey in `api/tests/integration/cv-intake.test.ts`
 - [ ] T029 [P] [US1] Snapshot tests for the profile-review screen in `ios/FyndraTests/Snapshot/ProfileReviewTests.swift` — **including zh-Hant at the largest Dynamic Type size** (constitution III)
 
 ### Implementation for User Story 1
 
-- [ ] T030 [US1] Implement CV storage in `api/src/cv/storage.ts` — PII-partitioned, encrypted at rest, own retention clock, single-operation delete (depends on T003's retention decision)
+- [X] T030 [US1] Implement CV storage in `api/src/cv/storage.ts` — PII-partitioned, encrypted at rest, own retention clock, single-operation delete (depends on T003's retention decision)
 - [X] T031 [P] [US1] Implement text extraction in `api/src/cv/extract.ts` — PDF text layer via `pdftotext`, DOCX in-process; synchronous format validation returning `422` with a specific code
 - [X] T032 [P] [US1] Implement CJK/Latin language detection and segmentation in `api/src/matching/segment.ts` (jieba-class or ICU for zh-Hant)
-- [ ] T033 [US1] Implement LLM CV interpretation in `api/src/cv/interpret.ts` — keywords + YoE, language-aware, prompt structure adapted from career-ops `modes/intake.md` with attribution (depends on T031, T032)
-- [ ] T034 [US1] Implement the `parse-cv` queue handler in `api/src/queue/parse-cv.ts` writing `CvDocument.parseStatus` and raw extraction
-- [ ] T035 [US1] Implement `POST /profile/cv`, `GET /profile/cv`, `GET /profile`, `PATCH /profile` in `api/src/routes/profile.ts` — corrections applied only on user confirmation, never silently (FR-003)
+- [X] T033 [US1] Implement LLM CV interpretation in `api/src/cv/interpret.ts` — keywords + YoE, language-aware, prompt structure adapted from career-ops `modes/intake.md` with attribution (depends on T031, T032)
+- [X] T034 [US1] Implement the `parse-cv` queue handler in `api/src/queue/parse-cv.ts` writing `CvDocument.parseStatus` and raw extraction
+- [X] T035 [US1] Implement `POST /profile/cv`, `GET /profile/cv`, `GET /profile`, `PATCH /profile` in `api/src/routes/profile.ts` — corrections applied only on user confirmation, never silently (FR-003)
 - [ ] T036 [P] [US1] Implement the CV upload view + view model in `ios/Fyndra/Features/Profile/` with document picker, all four states (loading/empty/error/success)
 - [ ] T037 [US1] Implement the keyword/YoE review-and-edit view in `ios/Fyndra/Features/Profile/` (depends on T036)
 
@@ -189,11 +189,50 @@ editable, and persist. Confirm a scanned PDF is rejected by reason.
 > `cv/yoe.ts` — a deterministic bilingual YoE regex extractor — is also done and tested (8/8),
 > covering the common explicit-statement case without needing an LLM call at all.
 >
-> **T033 is partial**: the deterministic YoE half is done (`cv/yoe.ts`, above); the LLM
-> keyword-interpretation half is not built — no `GEMINI_API_KEY`/`OPENAI_API_KEY` is configured
-> in this environment to build and verify against. T030 (storage), T034 (queue handler), T035
-> (routes), and all iOS work (T025, T028, T029, T036, T037) are not started. 32/32 API tests
-> passing overall (`npm test`), tsc and eslint clean.
+> **Update (2026-09-01, later same day)** — T033, T030, T034, T035, T025, T028 all done for real.
+> User supplied an OpenRouter key; `LLM_PROVIDER=openai-compatible` +
+> `OPENAI_BASE_URL=https://openrouter.ai/api/v1`. Default dev model switched from the requested
+> `nvidia/nemotron-3.5-lightning:free` to **`nvidia/nemotron-3-nano-omni-30b-a3b-reasoning:free`**
+> after the lightning model's chain-of-thought made every call time out at 30s (confirmed via
+> direct curl — ~30-90s for a real CV, vs ~1-2s / ~10-25s respectively for the nano model); user
+> suggested the swap. `cv/interpret.ts` (T033): OpenAI-compatible LLM client (`llm/client.ts`),
+> prompt requests strict JSON, defensive parsing survives markdown-fenced/prose-wrapped responses,
+> regex YoE (yoe.ts) takes priority over the model's reported YoE. 7/7 unit tests (fake `LlmClient`)
+> plus **2 real integration tests hitting the live OpenRouter API** — English and zh-Hant CVs both
+> produce non-empty keywords and correct YoE end-to-end (`tests/integration/cv-interpret-live.test.ts`,
+> skips itself when no key is configured).
+>
+> `cv/storage.ts` (T030): AES-256-GCM encryption at rest, opaque UUID refs, single-operation
+> delete, new `purgeScheduledAt` retention-clock column (compliance default: account deletion + 30
+> days). 6/6 tests, including a real assertion that plaintext never touches disk.
+>
+> `queue/parse-cv.ts` (T034) + `routes/profile.ts` (T035, using `multer` for multipart — hand-rolling
+> that parser was judged too risky, unlike the DOCX ZIP reader): full `POST/GET /profile/cv`,
+> `GET/PATCH /profile`. 10/10 contract tests (`profile.test.ts`, T025) plus a real end-to-end
+> integration test (`cv-intake.test.ts`, T028) that uploads a real PDF, runs the actual worker
+> handler, and confirms the profile via PATCH — all against live Postgres and (for the LLM step)
+> the live model.
+>
+> **Bugs found and fixed along the way**: (1) `process.loadEnvFile()` called inside a Jest test
+> file never propagated to `process.env` as the test saw it — Jest's `jest-environment-node` gives
+> each test file its own `process` object that only snapshots env at setup time. Fixed with a
+> `--import ./scripts/preload-env.mjs` flag on the `test` npm script, loading `.env` in the real
+> outer process before Jest's sandbox exists. (2) The auth rate limiter (5 req/60s on
+> `/auth/request-code`) was tight enough that this project's own test suite tripped it — widened
+> to 20/15min; also a warning sign it could have false-positived on real shared-IP traffic.
+> (3) **Cross-file test-cleanup race**: `auth.test.ts`'s `afterAll` deleted every `UserProfile`
+> whose email started with `test-` — which also matched `profile.test.ts`'s `test-profile-*` and
+> `cv-intake.test.ts`'s `test-intake-*` fixtures. Jest runs test *files* in parallel by default,
+> so when `auth.test.ts` finished first it deleted profiles other files were still mid-flight on,
+> producing an intermittent `Foreign key constraint violated` on `CvDocument.create()`. Fixed by
+> giving every test file's cleanup a distinct, non-overlapping prefix
+> (`test-auth-`/`test-profile-`/`test-intake-`) — a convention worth keeping for every test file
+> added from here on.
+>
+> **T012/T013 (Xcode project, CI) still not done** — no Xcode.app in this environment, unchanged
+> from Phase 1's note. **All iOS work (T029, T036, T037) not started.** US1's backend is complete
+> and fully tested; only the iOS UI remains for this story. **59/59 API tests passing** (`npm test`,
+> confirmed clean on a second full run after the cleanup-race fix), tsc and eslint clean.
 
 ---
 

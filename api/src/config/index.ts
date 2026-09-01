@@ -12,6 +12,9 @@ export const config = {
   geminiApiKey: process.env.GEMINI_API_KEY ?? '',
   openaiApiKey: process.env.OPENAI_API_KEY ?? '',
   openaiBaseUrl: process.env.OPENAI_BASE_URL ?? '',
+  llmModel: process.env.LLM_MODEL ?? '',
+  cvEncryptionKey: process.env.CV_ENCRYPTION_KEY ?? '',
+  cvStorageDir: process.env.CV_STORAGE_DIR ?? 'data/cv-storage',
   firecrawlApiKey: process.env.FIRECRAWL_API_KEY ?? '',
   authTokenTtlDays: Number(process.env.AUTH_TOKEN_TTL_DAYS ?? 30),
   apns: {

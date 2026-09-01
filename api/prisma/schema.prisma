@@ -146,8 +146,14 @@ model CvDocument {
   parseStatus         CvParseStatus @default(parsing)
   languageSegmenter   String?
   createdAt           DateTime      @default(now())
+  // Retention clock (compliance/privacy-policy-requirements.md §4): set
+  // only once deletion is requested — accountDeletedAt + 30 days, or
+  // immediately for a manual single-document delete. Null means "not
+  // scheduled for deletion".
+  purgeScheduledAt    DateTime?
 
   @@index([profileId, createdAt])
+  @@index([purgeScheduledAt])
 }
 
 model JobPosting {

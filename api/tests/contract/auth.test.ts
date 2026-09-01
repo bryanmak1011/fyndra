@@ -20,7 +20,7 @@ const { prisma } = await import('../../src/lib/prisma.js');
 
 const app = createApp();
 let counter = 0;
-const freshEmail = () => `test-${Date.now()}-${counter++}@example.com`;
+const freshEmail = () => `test-auth-${Date.now()}-${counter++}@example.com`;
 
 async function verifiedToken(email: string): Promise<string> {
   await request(app).post('/v1/auth/request-code').send({ email });
@@ -29,7 +29,7 @@ async function verifiedToken(email: string): Promise<string> {
 }
 
 afterAll(async () => {
-  await prisma.userProfile.deleteMany({ where: { email: { startsWith: 'test-' } } });
+  await prisma.userProfile.deleteMany({ where: { email: { startsWith: 'test-auth-' } } });
   await prisma.$disconnect();
 });
 

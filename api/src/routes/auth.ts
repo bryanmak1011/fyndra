@@ -19,7 +19,12 @@ const CODE_TTL_MS = 10 * 60 * 1000;
 // account exists, so the endpoint can't be used to enumerate emails.
 authRouter.post(
   '/request-code',
-  rateLimit(60_000, 5),
+  // 5/60s was too tight even for legitimate use: it broke this project's
+  // own test suite (many fresh test accounts, one client "IP"), which
+  // means it would just as easily false-positive on a real shared-IP
+  // scenario (office NAT, campus Wi-Fi) with several genuine sign-ups in
+  // a short window. 20/15min still meaningfully blocks a spam script.
+  rateLimit(15 * 60_000, 20),
   validateBody(requestCodeSchema),
   async (req, res) => {
     const { email } = req.body as z.infer<typeof requestCodeSchema>;
