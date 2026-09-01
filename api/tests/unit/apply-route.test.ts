@@ -1,32 +1,21 @@
 import { determineApplyRoute } from '../../src/sourcing/apply-route.js';
 
-// FR-009: direct submission is only ever attempted against an ATS with a
-// published form schema we can actually read. Verified live 2026-09-01
-// (see apply-route.ts's header comment): only Greenhouse's application
-// form fields are reachable without authenticated partner access — Lever,
-// Ashby, and Workable all gate their form-schema APIs behind credentials
-// this product doesn't have, so they route to handoff, not
-// direct_submit_allowlisted, despite being read-side GO for sourcing.
+// FR-009 / 2026-09-01 finding (BLOCKERS.md, SDD.md R13): direct
+// submission is disabled for every provider right now, including
+// Greenhouse — its documented submission endpoint requires a private,
+// employer-issued API key we have no way to obtain. Every URL routes to
+// `handoff` until Product decides how to proceed (see BLOCKERS.md).
 describe('determineApplyRoute', () => {
-  it.each([['https://boards.greenhouse.io/testco/jobs/123'], ['https://job-boards.greenhouse.io/testco/jobs/123']])(
-    'routes a Greenhouse URL (%s) to direct_submit_allowlisted — the only ATS with a public form-schema API',
-    (url) => {
-      expect(determineApplyRoute(url)).toBe('direct_submit_allowlisted');
-    },
-  );
-
   it.each([
-    ['https://www.yourator.co/companies/testco/jobs/1'],
-    ['https://hk.jobsdb.com/job/12345'],
-    ['https://some-random-careers-site.com/jobs/1'],
-    ['https://boards.greenhouse.io.evil.com/testco/jobs/123'], // lookalike host, not the real one
-    // Lever/Ashby/Workable: read-side sourcing works (T048), but their
-    // form-schema APIs require authenticated partner access we don't
-    // have, so direct submission isn't safe — these fall back to handoff.
+    ['https://boards.greenhouse.io/testco/jobs/123'],
+    ['https://job-boards.greenhouse.io/testco/jobs/123'],
     ['https://jobs.lever.co/testco/abc-123'],
     ['https://jobs.ashbyhq.com/testco/abc-123'],
     ['https://apply.workable.com/j/ABCDEF'],
-  ])('routes a non-allowlisted URL (%s) to handoff', (url) => {
+    ['https://www.yourator.co/companies/testco/jobs/1'],
+    ['https://hk.jobsdb.com/job/12345'],
+    ['https://some-random-careers-site.com/jobs/1'],
+  ])('routes every URL (%s) to handoff — direct submission is disabled pending BLOCKERS.md', (url) => {
     expect(determineApplyRoute(url)).toBe('handoff');
   });
 

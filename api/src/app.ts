@@ -4,6 +4,7 @@ import { devicesRouter } from './routes/devices.js';
 import { profileRouter } from './routes/profile.js';
 import { feedRouter } from './routes/feed.js';
 import { swipesRouter } from './routes/swipes.js';
+import { applicationsRouter } from './routes/applications.js';
 import { requireAuth } from './middleware/auth.js';
 import { errorHandler } from './middleware/error-handler.js';
 import { newCorrelationId } from './lib/logger.js';
@@ -26,8 +27,9 @@ export function createApp() {
   app.use('/v1/profile', requireAuth, profileRouter);
   app.use('/v1/jobs', requireAuth, feedRouter);
   app.use('/v1/jobs', requireAuth, swipesRouter);
+  app.use('/v1/applications', requireAuth, applicationsRouter);
 
-  // Application routers are added in Phases 5-6 (US3-US4) — see tasks.md.
+  // GET /applications, GET /applications/{id} land in Phase 6 (US4, T077).
 
   app.use(errorHandler);
   return app;

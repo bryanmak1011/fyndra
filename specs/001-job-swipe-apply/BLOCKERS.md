@@ -6,6 +6,58 @@ question for you.
 
 ---
 
+## 2026-09-01 — 🛑 CRITICAL: no ATS platform supports true third-party auto-submission (T067)
+
+**Status**: Stopped. Not worked around. This is bigger than the Lever/Ashby/Workable finding
+below — it also rules out Greenhouse, the one platform that finding left standing.
+
+Before writing the submitter (T067), I checked Greenhouse's own documented application-submission
+endpoint (`POST boards-api.greenhouse.io/v1/boards/{board}/jobs/{id}`) directly against their
+official docs. It requires **HTTP Basic Auth with an API key from the employer's own Greenhouse
+"API Credentials" page** — quoting Greenhouse's docs directly: *"the Basic Auth username is your
+API key... No password is required."* This is a **private, per-organization credential**, not the
+public board token that's already visible in every job URL. We have no way to obtain it for any
+employer we don't have a direct integration relationship with.
+
+**What this means, combined with the T064 finding below**: there is no ATS platform — Greenhouse,
+Lever, Ashby, or Workable — whose genuinely public, credential-free surface includes a submission
+API a third-party candidate-facing app can call. The only way to submit a real application to any
+of them without an employer-issued API key is to **drive the actual candidate-facing web form** —
+i.e. real browser automation clicking through and submitting a form. That is a fundamentally
+different (and materially riskier) technical approach than an API POST, and it is **exactly what
+career-ops's own design refuses to do** (`web/src/lib/apply/session.ts`: *"NEVER clicks a
+submit/apply control"*) and what this project's own SDD.md D2/§6.5 assumed we'd avoid by using
+clean API calls instead of form automation.
+
+**What I did**: stopped, rather than try to reverse-engineer the actual candidate-facing form's
+real POST target — that would be undocumented-endpoint-guessing on a *live submission* action
+(unlike a read-only scrape, a wrong guess here could partially submit a broken application on a
+real user's behalf), which is a materially worse failure mode than anything else this session has
+guessed at. I did **not** touch `sourcing/apply-route.ts` further after this finding — see below
+for what it currently does and why that's now provisional pending your decision.
+
+**What this changes about the whole apply flow, if it stands**: `direct_submit_allowlisted` has no
+real backing for *any* current provider. Every application would route to `handoff` (prepare an
+answer sheet, hand it to the user to submit themselves) — which is still a fully functional, valuable
+product; it just means "auto-submit" as a mode doesn't yet have anything to auto-submit *to*.
+
+**Question for you** — this needs a real decision, not an engineering workaround:
+1. **Accept handoff-only for Phase 1c.** Auto-submit mode becomes forward-looking infrastructure
+   (already built: caps, sensitive-question gating, answer prefill) with nothing to attach it to
+   yet. Ship review/handoff as the real product now.
+2. **Pursue employer-side API credentials.** Greenhouse (and the others) do support real
+   integrations for parties who register as an actual job board / ATS partner — this is a business
+   relationship (and likely a review/approval process per platform), not something I can set up.
+3. **Explicitly decide to build browser-automation submission anyway**, accepting the ToS/App
+   Store/account-ban risk this design has avoided since rev 1 — if you want this path, I'd want it
+   as a deliberate, informed choice (like the JobsDB HK risk acceptance), not something I infer.
+
+I did not touch T068 (handoff) or T069 (state machine) pending your read on this — building them
+is valuable either way (handoff is now the *primary* path under option 1, and still needed as the
+fallback under options 2/3), so I'm continuing there while this sits open.
+
+---
+
 ## 2026-09-01 — Lever, Ashby, Workable can't be auto-submit targets — only Greenhouse can (T064)
 
 **Status**: Not blocked — resolved by narrowing scope, but flagging because it changes a decision

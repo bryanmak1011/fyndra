@@ -322,23 +322,23 @@ a non-allowlisted one → falls back to review. A sensitive question always bloc
 
 ### Tests for User Story 3 ⚠️ Write first, confirm they fail
 
-- [ ] T057 [P] [US3] Contract tests for `POST /applications/{id}/confirm`, `/handoff-complete`, and `/questions/{qid}/answer` in `api/tests/contract/applications.test.ts`
+- [X] T057 [P] [US3] Contract tests for `POST /applications/{id}/confirm`, `/handoff-complete`, and `/questions/{qid}/answer` in `api/tests/contract/applications.test.ts`
 - [X] T058 [P] [US3] Unit tests for the sensitive-field carve-out in `api/tests/unit/sensitive.test.ts` — every class from T006, in both languages, must force `pending_needs_answer` in **both** submission modes and must never be reused (FR-022)
 - [X] T059 [P] [US3] Unit tests for the allowlist gate in `api/tests/unit/apply-route.test.ts` — a non-allowlisted posting in auto-submit mode routes to `awaiting_review`, never to a submission attempt (FR-009)
 - [X] T060 [P] [US3] Unit tests for volume caps in `api/tests/unit/caps.test.ts` — cap already spent → `409` at swipe; cap crossed while queued → `awaiting_review` with `cap_reached`
-- [ ] T061 [P] [US3] Integration test for the full state machine in `api/tests/integration/apply-flow.test.ts` covering every transition in [data-model.md](./data-model.md)
+- [X] T061 [P] [US3] Integration test for the full state machine in `api/tests/integration/apply-flow.test.ts` covering every transition in [data-model.md](./data-model.md)
 - [ ] T062 [P] [US3] Snapshot tests for the answer-sheet review and pending-question screens in `ios/FyndraTests/Snapshot/ApplyTests.swift`
 
 ### Implementation for User Story 3
 
 - [X] T063 [US3] Implement the sensitive-question classifier in `api/src/apply/sensitive.ts` from T006's taxonomy — bilingual, testable, fail-closed (an unclassifiable question is treated as sensitive)
 - [X] T064 [P] [US3] Implement ATS form-schema readers in `api/src/apply/schemas/` for Greenhouse, Lever, Ashby, Workable — **Greenhouse only, built and verified live 2026-09-01.** Lever/Ashby/Workable's form-schema APIs all require authenticated partner access we don't have (confirmed live, not assumed) — see `BLOCKERS.md` 2026-09-01. `sourcing/apply-route.ts`'s allowlist narrowed to Greenhouse-only as a direct consequence; T067's ATS submitter is now Greenhouse-only too.
-- [ ] T065 [US3] Implement answer prefill in `api/src/apply/prefill.ts` — profile/CV mapping plus LLM drafting for free-text fields, producing `ProposedAnswer` rows with a `source` for each (depends on T063, T064)
-- [ ] T066 [US3] Implement answer reuse in `api/src/apply/answer-reuse.ts` keyed on `(profileId, questionFingerprint)`, excluding sensitive questions (FR-021, FR-022)
-- [ ] T067 [US3] Implement the ATS submitter in `api/src/apply/submit-ats.ts` — allowlist-gated only, with CAPTCHA and multi-step detection producing classified `failureReason` values (depends on T002's GO, T064)
-- [ ] T068 [US3] Implement the handoff path in `api/src/apply/handoff.ts` — answer sheet plus employer form URL for non-allowlisted postings (FR-025)
-- [ ] T069 [US3] Implement the `submit` queue handler and the Application state machine in `api/src/apply/state-machine.ts`, enforcing every guard in [data-model.md](./data-model.md) (depends on T063, T065, T067, T068)
-- [ ] T070 [US3] Implement `POST /applications/{id}/confirm`, `/handoff-complete`, `/questions/{qid}/answer` in `api/src/routes/applications.ts`
+- [X] T065 [US3] Implement answer prefill in `api/src/apply/prefill.ts` — profile/CV mapping plus LLM drafting for free-text fields, producing `ProposedAnswer` rows with a `source` for each (depends on T063, T064)
+- [X] T066 [US3] Implement answer reuse in `api/src/apply/answer-reuse.ts` keyed on `(profileId, questionFingerprint)`, excluding sensitive questions (FR-021, FR-022)
+- [ ] T067 [US3] Implement the ATS submitter in `api/src/apply/submit-ats.ts` — allowlist-gated only, with CAPTCHA and multi-step detection producing classified `failureReason` values (depends on T002's GO, T064) — **PAUSED 2026-09-01, not attempted.** Verified Greenhouse's own documented submission endpoint requires a private, employer-issued API key (Basic Auth) — no ATS platform has a genuinely public submission channel a third-party candidate app can use. `sourcing/apply-route.ts` disables direct submission entirely (`ENABLE_DIRECT_SUBMIT = false`) pending a Product decision — see `BLOCKERS.md` and `SDD.md` R13. This is the most consequential finding of the session: it means "auto-submit" currently has nothing to submit *to*, for any provider.
+- [X] T068 [US3] Implement the handoff path in `api/src/apply/handoff.ts` — answer sheet plus employer form URL for non-allowlisted postings (FR-025)
+- [X] T069 [US3] Implement the `submit` queue handler and the Application state machine in `api/src/apply/state-machine.ts`, enforcing every guard in [data-model.md](./data-model.md) (depends on T063, T065, T067, T068)
+- [X] T070 [US3] Implement `POST /applications/{id}/confirm`, `/handoff-complete`, `/questions/{qid}/answer` in `api/src/routes/applications.ts`
 - [ ] T071 [P] [US3] Implement the answer-sheet review UI in `ios/Fyndra/Features/ApplicationTracking/` — per-field proposed answer, source label, inline edit
 - [ ] T072 [P] [US3] Implement the pending-question UI in `ios/Fyndra/Features/ApplicationTracking/`, explaining *why* a sensitive question must be answered by the user
 - [ ] T073 [US3] Implement the submission-mode setting and cap display in `ios/Fyndra/Features/Settings/` — default review-before-sending, auto-submit as an informed opt-in (FR-018, FR-019)
@@ -358,12 +358,48 @@ a non-allowlisted one → falls back to review. A sensitive question always bloc
 >   the spec's own worked example. Category-check priority: national_id → visa_sponsorship →
 >   work_authorization → salary → demographic.
 > - **T064 found a significant, load-bearing gap — logged in `BLOCKERS.md`**: only Greenhouse has
->   a public, unauthenticated form-schema API. Lever, Ashby, and Workable all gate application
->   form fields behind authenticated partner access. `sourcing/apply-route.ts`'s allowlist is now
->   Greenhouse-only (was all 4 ATS families) — SDD.md R12 records this. T067 (the ATS submitter)
->   is Greenhouse-only as a direct consequence.
+>   a public, unauthenticated form-schema *read* API. Lever, Ashby, and Workable all gate
+>   application form fields behind authenticated partner access. (**Superseded by the T067 finding
+>   below** — Greenhouse doesn't help either, once you need to actually submit.)
 >
-> **125/125 API tests passing**, tsc and eslint clean. T057, T059-T062, T065-T073 not yet started.
+> **125/125 API tests passing**, tsc and eslint clean.
+>
+> **Update (2026-09-01, later same day)** — T065-T066, T068-T070, T057, T061 all done for real.
+> Then **T067 surfaced the session's most consequential finding**, and everything downstream was
+> designed around it rather than quietly working past it:
+>
+> - **T065/T066 (prefill + answer reuse)**: `apply/prefill.ts` classifies every question via
+>   sensitive.ts first (never calls the LLM for a sensitive one — verified in tests), then tries a
+>   direct profile field, then a reused prior answer (`answer-reuse.ts`, exact-normalised-text
+>   fingerprinting — documented as a ponytail baseline, not fuzzy matching), then an LLM draft that
+>   must say `UNKNOWN` rather than guess when it lacks the data. **Real scope gap documented
+>   in-code**: `UserProfile` only has `email`/`yoe`/`keywords` — no name/phone (CV interpretation,
+>   T033, never extracts them) — so fields like "First Name" go to `pendingQuestions` honestly
+>   rather than being faked. 12/12 tests (prefill.test.ts + answer-reuse.test.ts).
+> - **T067 (ATS submitter) — PAUSED, not built.** Checked Greenhouse's own documented submission
+>   endpoint before writing code: it requires HTTP Basic Auth with an API key from the *employer's*
+>   Greenhouse account, not a public credential. Combined with the T064 finding, **no ATS platform
+>   has a genuinely public submission channel for a third-party candidate app** — real submission
+>   would mean automating the actual candidate-facing web form, which is exactly what career-ops's
+>   design refuses to do and what this SDD assumed we'd avoid (D2). `sourcing/apply-route.ts` now
+>   has `ENABLE_DIRECT_SUBMIT = false` and routes every URL to `handoff`, with the Greenhouse
+>   allowlist logic kept but dormant (flip the flag once there's a real channel). SDD.md R13 (new,
+>   critical) and `BLOCKERS.md` have the three options for Product to choose between.
+> - **T068 (handoff)**: now the *only* real apply path, not a fallback. Runs the real Greenhouse
+>   schema fetch + prefill when the provider is Greenhouse; returns an empty sheet (deep-link only)
+>   for every other provider, honestly, since there's no schema reader for them. 5/5 tests.
+> - **T069 (state machine)**: `queued` lands on `pending_needs_answer` or `awaiting_review` only —
+>   never `applied`/`handed_off` directly, since nothing can submit. Those only happen via the
+>   user's own confirm/handoff-complete action.
+> - **T070 (routes)**: `POST /applications/{id}/confirm` now always transitions to `handed_off`
+>   (never attempts a submission); `/handoff-complete` and `/questions/{id}/answer` as specified.
+>   10/10 contract tests.
+> - **T061 (full state-machine integration test)**: real swipe → real `handleSubmit` → every
+>   transition through to `applied`, network boundaries (Greenhouse fetch, LLM call) mocked for
+>   determinism — each is separately verified live elsewhere. 2/2 tests.
+>
+> **153/153 API tests passing**, tsc and eslint clean. T057/T059-T062 partially covered by the
+> above (T059/T060 were already done); T062 (iOS snapshot tests), T071-T073 (iOS) not started.
 
 ---
 
