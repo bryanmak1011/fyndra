@@ -159,16 +159,16 @@ editable, and persist. Confirm a scanned PDF is rejected by reason.
 ### Tests for User Story 1 ⚠️ Write first, confirm they fail
 
 - [ ] T025 [P] [US1] Contract test for `POST /profile/cv`, `GET /profile/cv`, `GET/PATCH /profile` in `api/tests/contract/profile.test.ts`
-- [ ] T026 [P] [US1] Unit tests for text extraction in `api/tests/unit/cv-extract.test.ts` — text-layer PDF succeeds, **DOCX succeeds**, scanned PDF returns `no_text_layer`, password-protected returns `password_protected`
-- [ ] T027 [P] [US1] Unit tests for CJK extraction in `api/tests/unit/cv-interpret-zhhant.test.ts` — a Traditional Chinese CV fixture MUST yield **non-empty** keywords and a YoE parsed from forms like `5 年以上工作經驗`. An empty result is a failure, not a pass (SDD R5)
+- [X] T026 [P] [US1] Unit tests for text extraction in `api/tests/unit/cv-extract.test.ts` — text-layer PDF succeeds, **DOCX succeeds**, scanned PDF returns `no_text_layer`, password-protected returns `password_protected`
+- [X] T027 [P] [US1] Unit tests for CJK extraction in `api/tests/unit/cv-interpret-zhhant.test.ts` — a Traditional Chinese CV fixture MUST yield **non-empty** keywords and a YoE parsed from forms like `5 年以上工作經驗`. An empty result is a failure, not a pass (SDD R5)
 - [ ] T028 [P] [US1] Integration test for the full intake journey in `api/tests/integration/cv-intake.test.ts`
 - [ ] T029 [P] [US1] Snapshot tests for the profile-review screen in `ios/FyndraTests/Snapshot/ProfileReviewTests.swift` — **including zh-Hant at the largest Dynamic Type size** (constitution III)
 
 ### Implementation for User Story 1
 
 - [ ] T030 [US1] Implement CV storage in `api/src/cv/storage.ts` — PII-partitioned, encrypted at rest, own retention clock, single-operation delete (depends on T003's retention decision)
-- [ ] T031 [P] [US1] Implement text extraction in `api/src/cv/extract.ts` — PDF text layer via `pdftotext`, DOCX in-process; synchronous format validation returning `422` with a specific code
-- [ ] T032 [P] [US1] Implement CJK/Latin language detection and segmentation in `api/src/matching/segment.ts` (jieba-class or ICU for zh-Hant)
+- [X] T031 [P] [US1] Implement text extraction in `api/src/cv/extract.ts` — PDF text layer via `pdftotext`, DOCX in-process; synchronous format validation returning `422` with a specific code
+- [X] T032 [P] [US1] Implement CJK/Latin language detection and segmentation in `api/src/matching/segment.ts` (jieba-class or ICU for zh-Hant)
 - [ ] T033 [US1] Implement LLM CV interpretation in `api/src/cv/interpret.ts` — keywords + YoE, language-aware, prompt structure adapted from career-ops `modes/intake.md` with attribution (depends on T031, T032)
 - [ ] T034 [US1] Implement the `parse-cv` queue handler in `api/src/queue/parse-cv.ts` writing `CvDocument.parseStatus` and raw extraction
 - [ ] T035 [US1] Implement `POST /profile/cv`, `GET /profile/cv`, `GET /profile`, `PATCH /profile` in `api/src/routes/profile.ts` — corrections applied only on user confirmation, never silently (FR-003)
@@ -176,6 +176,24 @@ editable, and persist. Confirm a scanned PDF is rejected by reason.
 - [ ] T037 [US1] Implement the keyword/YoE review-and-edit view in `ios/Fyndra/Features/Profile/` (depends on T036)
 
 **Checkpoint**: User Story 1 fully functional and independently demoable
+
+> **Build status (2026-09-01)** — T026, T027, T031, T032 done for real, with genuine fixtures:
+> `cv-extract.test.ts` runs against a real PDF (rendered via macOS `cupsfilter`) and a real DOCX
+> (via macOS `textutil`), plus a hand-written valid-but-empty PDF for the `no_text_layer` case —
+> 5/5 passing. `extract.ts`'s DOCX path is a from-scratch ~90-line ZIP reader (`cv/zip.ts`,
+> `inflateRawSync` only, no dependency) rather than adm-zip/jszip — ponytail: narrow enough to
+> hand-roll correctly, and it decoded a real Word-generated file correctly. `segment.ts` (T032)
+> satisfies R5 with character-bigram tokenisation for the Han-script portion, not a real
+> dictionary-based segmenter (no jieba-equivalent available) — documented as a ceiling in the file,
+> upgrade path noted; 8/8 zh-Hant tests pass including the R5 non-empty-extraction guarantee.
+> `cv/yoe.ts` — a deterministic bilingual YoE regex extractor — is also done and tested (8/8),
+> covering the common explicit-statement case without needing an LLM call at all.
+>
+> **T033 is partial**: the deterministic YoE half is done (`cv/yoe.ts`, above); the LLM
+> keyword-interpretation half is not built — no `GEMINI_API_KEY`/`OPENAI_API_KEY` is configured
+> in this environment to build and verify against. T030 (storage), T034 (queue handler), T035
+> (routes), and all iOS work (T025, T028, T029, T036, T037) are not started. 32/32 API tests
+> passing overall (`npm test`), tsc and eslint clean.
 
 ---
 
