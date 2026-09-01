@@ -12,8 +12,11 @@ export interface LlmConfig {
 }
 
 interface ChatCompletionResponse {
-  choices: Array<{ message: { content: string | null } }>;
+  choices?: Array<{ message: { content: string | null } }>;
+  error?: { message?: string; code?: string | number };
 }
+
+export class LlmResponseError extends Error {}
 
 export function createOpenAiCompatibleClient(config: LlmConfig): LlmClient {
   return {
@@ -30,13 +33,30 @@ export function createOpenAiCompatibleClient(config: LlmConfig): LlmClient {
         }),
       });
 
+      const rawText = await response.text();
+
       if (!response.ok) {
-        throw new Error(`LLM request failed: ${response.status} ${await response.text()}`);
+        throw new LlmResponseError(`LLM request failed: ${response.status} ${rawText}`);
       }
 
-      const body = (await response.json()) as ChatCompletionResponse;
-      const content = body.choices[0]?.message.content;
-      if (!content) throw new Error('LLM response had no content');
+      let body: ChatCompletionResponse;
+      try {
+        body = JSON.parse(rawText);
+      } catch {
+        throw new LlmResponseError(`LLM response was not valid JSON: ${rawText.slice(0, 500)}`);
+      }
+
+      // Some providers (confirmed with OpenRouter under load) return HTTP
+      // 200 with an error payload instead of `choices` — e.g. an
+      // upstream-provider hiccup on a free-tier model. Surface that
+      // clearly rather than crashing on `.choices[0]` of undefined.
+      if (body.error) {
+        throw new LlmResponseError(`LLM provider error (HTTP 200): ${JSON.stringify(body.error)}`);
+      }
+      const content = body.choices?.[0]?.message.content;
+      if (!content) {
+        throw new LlmResponseError(`LLM response had no usable content: ${rawText.slice(0, 500)}`);
+      }
       return content;
     },
   };

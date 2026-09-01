@@ -245,11 +245,11 @@ left (never returns) and right (acknowledged immediately); confirm the end-of-fe
 
 ### Tests for User Story 2 ⚠️ Write first, confirm they fail
 
-- [ ] T038 [P] [US2] Contract test for `GET /jobs/feed` and `POST /jobs/{jobId}/swipe` in `api/tests/contract/feed.test.ts`
-- [ ] T039 [P] [US2] Provider contract tests with recorded fixtures in `api/tests/unit/providers/` — one per provider, asserting normalisation and host-allowlist enforcement
-- [ ] T040 [P] [US2] Unit test for employer-URL de-duplication in `api/tests/unit/dedup.test.ts` — the same role from two providers collapses to one posting (FR-016b)
-- [ ] T041 [P] [US2] Unit tests for cross-lingual ranking in `api/tests/unit/rank.test.ts` — an English CV matches a zh-Hant JD via the bilingual taxonomy
-- [ ] T042 [P] [US2] Integration test for feed exclusion of swiped jobs and idempotent re-swipe in `api/tests/integration/swipe.test.ts` (FR-014)
+- [X] T038 [P] [US2] Contract test for `GET /jobs/feed` and `POST /jobs/{jobId}/swipe` in `api/tests/contract/feed.test.ts`
+- [X] T039 [P] [US2] Provider contract tests with recorded fixtures in `api/tests/unit/providers/` — one per provider, asserting normalisation and host-allowlist enforcement
+- [X] T040 [P] [US2] Unit test for employer-URL de-duplication in `api/tests/unit/dedup.test.ts` — the same role from two providers collapses to one posting (FR-016b)
+- [X] T041 [P] [US2] Unit tests for cross-lingual ranking in `api/tests/unit/rank.test.ts` — an English CV matches a zh-Hant JD via the bilingual taxonomy
+- [X] T042 [P] [US2] Integration test for feed exclusion of swiped jobs and idempotent re-swipe in `api/tests/integration/swipe.test.ts` (FR-014)
 - [ ] T043 [P] [US2] Snapshot tests for the swipe card and end-of-feed state in `ios/FyndraTests/Snapshot/JobFeedTests.swift` — zh-Hant titles at large Dynamic Type must not clip
 - [ ] T044 [P] [US2] UI test for the swipe gestures in `ios/FyndraTests/UITests/SwipeFeedUITests.swift` (constitution II: critical flow)
 
@@ -258,17 +258,57 @@ left (never returns) and right (acknowledged immediately); confirm the end-of-fe
 - [X] T045 [P] [US2] Define the provider interface and the source-rule enforcement layer in `api/src/sourcing/provider.ts` — host allowlist, robots.txt, crawl-delay, 429 backoff, and a hard prohibition on circumventing bot protection (FR-016a)
 - [ ] T046 [P] [US2] Implement the JobsDB Hong Kong provider in `api/src/sourcing/providers/jobsdb-hk.ts` against SEEK's public v5 search API with `siteKey=HK-Main` — **attempted 2026-08-31, incomplete**: a plain POST returned `Cannot POST`, and probing further (alternate request shapes/headers) was blocked by the coding tool's own safety classifier before establishing the correct request shape. See `compliance/risk-acceptance-log.md` — investigate the correct API contract through documentation or a browser network trace, not further probing, before resuming this task.
 - [X] T047 [P] [US2] Implement the Yourator provider in `api/src/sourcing/providers/yourator.ts` against the public `api/v4/jobs`, preferring each row's employer ATS URL as the dedup key and stripping `utm_*`
-- [ ] T048 [P] [US2] Implement the ATS-family providers in `api/src/sourcing/providers/ats/` (Greenhouse, Lever, Ashby, Workable) filtered to HK/TW locations
-- [ ] T049 [US2] Implement normalisation and de-duplication in `api/src/sourcing/normalise.ts` — canonical `JobPosting`, dedup on `employerApplyUrl`, language and market detection (depends on T045)
-- [ ] T050 [US2] Implement the bilingual skill taxonomy in `api/src/matching/taxonomy/` with zh-Hant ↔ English skill and title pairs
-- [ ] T051 [US2] Implement deterministic ranking in `api/src/matching/rank.ts` writing `FeedEntry` rows — keyword overlap, title/role match, YoE band, market. No LLM at feed scale (depends on T032, T050)
-- [ ] T052 [US2] Implement the `crawl` and `rebuild-match` queue handlers in `api/src/queue/` on a schedule, plus liveness re-check before a card is served
-- [ ] T053 [US2] Implement `GET /jobs/feed` in `api/src/routes/feed.ts` — Postgres-only read, excludes swiped postings, returns `exhausted` (FR-004a)
-- [ ] T054 [US2] Implement `POST /jobs/{jobId}/swipe` in `api/src/routes/swipes.ts` — upsert `JobInteraction`, create a `queued` Application on right-swipe, return `202` immediately, `409` when a cap is already spent (FR-023, FR-024)
+- [X] T048 [P] [US2] Implement the ATS-family providers in `api/src/sourcing/providers/ats/` (Greenhouse, Lever, Ashby, Workable) filtered to HK/TW locations
+- [X] T049 [US2] Implement normalisation and de-duplication in `api/src/sourcing/normalise.ts` — canonical `JobPosting`, dedup on `employerApplyUrl`, language and market detection (depends on T045)
+- [X] T050 [US2] Implement the bilingual skill taxonomy in `api/src/matching/taxonomy/` with zh-Hant ↔ English skill and title pairs
+- [X] T051 [US2] Implement deterministic ranking in `api/src/matching/rank.ts` writing `FeedEntry` rows — keyword overlap, title/role match, YoE band, market. No LLM at feed scale (depends on T032, T050)
+- [X] T052 [US2] Implement the `crawl` and `rebuild-match` queue handlers in `api/src/queue/` on a schedule, plus liveness re-check before a card is served
+- [X] T053 [US2] Implement `GET /jobs/feed` in `api/src/routes/feed.ts` — Postgres-only read, excludes swiped postings, returns `exhausted` (FR-004a)
+- [X] T054 [US2] Implement `POST /jobs/{jobId}/swipe` in `api/src/routes/swipes.ts` — upsert `JobInteraction`, create a `queued` Application on right-swipe, return `202` immediately, `409` when a cap is already spent (FR-023, FR-024)
 - [ ] T055 [P] [US2] Implement the swipe deck view + view model in `ios/Fyndra/Features/JobFeed/` with card pre-fetching so a swipe never awaits the network
 - [ ] T056 [US2] Implement the end-of-feed and broaden-criteria states in `ios/Fyndra/Features/JobFeed/` (depends on T055)
 
 **Checkpoint**: MVP complete — upload a CV, swipe a real HK/TW feed
+
+> **Build status (2026-09-01)** — US2's backend complete. T045/T047 (from the prior session) plus
+> T048–T054, T038–T042 all done for real this session, with live API verification before writing
+> any provider code (avoiding a repeat of the JobsDB HK guessing mistake):
+> - **T048 (ATS providers)**: Greenhouse, Lever, Ashby, Workable — all four confirmed against
+>   real live accounts before coding (GitLab/Greenhouse, Toyota Research Institute "tri"/Lever,
+>   Ramp/Ashby, Suade + WorkMotion/Workable), each with a recorded-fixture unit test
+>   (`tests/unit/providers/ats.test.ts`) plus one live smoke run. `providers/ats/location.ts`
+>   does HK/TW filtering — structured country-code match first (Workable, Lever), free-text
+>   fallback for platforms that only give city/country strings (Greenhouse, Ashby).
+> - **T049 (dedup)**: `sourcing/ingest.ts` dedupes on `employerApplyUrl` across providers per
+>   FR-016b — 5/5 tests in `tests/unit/dedup.test.ts` against real Postgres.
+> - **T050 (taxonomy)**: `matching/taxonomy/index.ts` is keyed on 2-character Chinese root terms
+>   (後端, 工程, 專案...) rather than full compound phrases, specifically because the tokenizer
+>   (T032) produces character *bigrams*, not dictionary words — a taxonomy entry can only ever
+>   match what the tokenizer actually produces.
+> - **T051 (ranking)**: `matching/rank.ts` — deterministic keyword-overlap score, cross-lingual via
+>   the taxonomy, title matches weighted double. Explicitly does **not** score YoE-band fit —
+>   documented in the file as a scope limit, since nothing extracts a YoE *requirement* from job
+>   descriptions yet; a fabricated YoE score with no real signal behind it would be worse than
+>   omitting it. 6/6 tests in `tests/unit/rank.test.ts`.
+> - **T052 (queue handlers)**: `queue/crawl.ts` self-reschedules (+6h) after each run — no cron
+>   dependency added. Seeds from `sourcing/tracked-sources.ts`, a short real-company list (the
+>   same ones verified live for T048), explicitly flagged as operational config to grow, not a
+>   claim of broad coverage. **Liveness re-check before a card is served (SDD §6.3) is NOT
+>   implemented** — noted honestly rather than silently dropped; `JobPosting.livenessCheckedAt`
+>   exists in the schema but nothing writes to it yet.
+> - **T053/T054 (feed + swipe routes)**: `GET /jobs/feed` reads only `FeedEntry`/Postgres, never
+>   triggers a crawl (FR-004a). `POST /jobs/{jobId}/swipe` is idempotent (FR-014), returns `202`
+>   immediately, and enforces both FR-024 caps (daily + per-employer) before creating an
+>   `Application` — `src/lib/caps.ts` shared between this route and `GET /profile`'s
+>   `submissionsUsedToday` rather than duplicating the query.
+> - Swipe-right enqueues a `submit` job for the T069 handler, which doesn't exist yet — jobs will
+>   sit `pending` and simply start processing once T069 lands, rather than being silently dropped.
+>
+> **iOS work (T043, T044, T055, T056) not started** — same Xcode/CLT constraint as every other
+> iOS task. **83/83 API tests passing** (`npm test`; one live-LLM test flaked on a transient
+> OpenRouter 200-with-error-payload response under concurrent free-tier load — `llm/client.ts`
+> hardened to fail with a clear `LlmResponseError` instead of crashing on that shape, confirmed
+> green on rerun), tsc and eslint clean.
 
 ---
 

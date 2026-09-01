@@ -7,6 +7,7 @@ import { storeCv } from '../cv/storage.js';
 import { enqueue } from '../queue/index.js';
 import { ApiError } from '../lib/errors.js';
 import { validateBody } from '../middleware/validate.js';
+import { submissionsToday } from '../lib/caps.js';
 
 export const profileRouter = Router();
 
@@ -110,21 +111,9 @@ function serializeProfile(profile: {
   };
 }
 
-async function countSubmissionsToday(profileId: string): Promise<number> {
-  const startOfDay = new Date();
-  startOfDay.setHours(0, 0, 0, 0);
-  return prisma.application.count({
-    where: {
-      jobInteraction: { profileId },
-      status: 'applied',
-      submittedAt: { gte: startOfDay },
-    },
-  });
-}
-
 profileRouter.get('/', async (req, res) => {
   const profile = await prisma.userProfile.findUniqueOrThrow({ where: { id: req.profileId! } });
-  const submissionsUsedToday = await countSubmissionsToday(req.profileId!);
+  const submissionsUsedToday = await submissionsToday(req.profileId!);
   res.status(200).json(serializeProfile(profile, submissionsUsedToday));
 });
 
@@ -157,6 +146,6 @@ profileRouter.patch('/', validateBody(updateSchema), async (req, res) => {
       ...(body.dailySubmissionCap !== undefined && { dailySubmissionCap: body.dailySubmissionCap }),
     },
   });
-  const submissionsUsedToday = await countSubmissionsToday(req.profileId!);
+  const submissionsUsedToday = await submissionsToday(req.profileId!);
   res.status(200).json(serializeProfile(profile, submissionsUsedToday));
 });

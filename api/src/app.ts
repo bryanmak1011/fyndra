@@ -2,6 +2,8 @@ import express from 'express';
 import { authRouter } from './routes/auth.js';
 import { devicesRouter } from './routes/devices.js';
 import { profileRouter } from './routes/profile.js';
+import { feedRouter } from './routes/feed.js';
+import { swipesRouter } from './routes/swipes.js';
 import { requireAuth } from './middleware/auth.js';
 import { errorHandler } from './middleware/error-handler.js';
 import { newCorrelationId } from './lib/logger.js';
@@ -22,9 +24,10 @@ export function createApp() {
   app.use('/v1/auth', authRouter);
   app.use('/v1/devices', requireAuth, devicesRouter);
   app.use('/v1/profile', requireAuth, profileRouter);
+  app.use('/v1/jobs', requireAuth, feedRouter);
+  app.use('/v1/jobs', requireAuth, swipesRouter);
 
-  // Feed/swipe/application routers are added in Phases 4-6 (US2-US4) —
-  // see tasks.md.
+  // Application routers are added in Phases 5-6 (US3-US4) — see tasks.md.
 
   app.use(errorHandler);
   return app;
