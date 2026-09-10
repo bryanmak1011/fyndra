@@ -46,3 +46,43 @@ than "blocked" for JobsDB HK; R4 (104.com.tw) stays open pending the narrower qu
 **Not affected by this entry**: cakeresume.com/cake.me (Art. 7.4 explicit prohibition, not
 currently a task) and meet.jobs (service shut down, moot) — no decision was requested or made on
 either.
+
+---
+
+## 2026-09-10 — Sourcing both JobsDB HK and 104.com.tw via third-party Apify actors
+
+**Finding overridden**: the narrower question this log's 2026-08-31 entry left open for 104.com.tw
+— *"why does it 403, and is defeating whatever that is a separate decision?"* — plus a change of
+technical approach for JobsDB HK.
+
+**Decision**: Product directed dropping the direct-fetch approach for both sources and sourcing
+them instead via two third-party Apify actors: `shahidirfan/jobsdb-scraper` (JobsDB HK) and
+`youfuxu/taiwan-104-job-scraper` (104.com.tw). Both were called live and their real output
+inspected (see tasks.md T046/T088 build-status notes) before any provider code was written.
+
+**What this decision does and does not cover, per source**:
+
+- **JobsDB HK — no new risk.** The actor's own `list_url` field, observed on a real live call,
+  shows it queries the identical public v5 search endpoint (`hk.jobsdb.com/api/jobsearch/v5/search
+  ?siteKey=HK-Main`) this design always intended to use — it just already has the correct request
+  shape figured out, which is what blocked T046 originally. This is the same ToS/contract-law risk
+  already accepted 2026-08-31, delegated to a different implementer.
+- **104.com.tw — a materially new decision, not covered by the 2026-08-31 entry.** That entry was
+  explicit: accepting the ToS risk on JobsDB HK (a site that *answers* a well-formed request) is
+  not the same decision as building or commissioning fingerprint evasion or browser automation
+  against a site that's *actively refusing* the request (104.com.tw's HTTP 403). The chosen actor's
+  own Docker build traceback (surfaced when a competing actor candidate failed) confirms this class
+  of actor launches a real browser (Playwright/Patchright) to do the scrape — i.e. it is, on our
+  behalf, doing exactly the kind of bot-detection workaround the 2026-08-31 entry drew a line
+  around. Product's instruction here ("for 104, let's go with web scrape or again with Apify")
+  is treated as the explicit, informed decision that carve-out called for — not inferred or
+  assumed by engineering.
+
+**Consequence for engineering**: T046 and T088 both unblocked and built 2026-09-10 (see
+tasks.md). Yourator and the Greenhouse/Lever/Ashby/Workable ATS-tracked-company sourcing (T047,
+T048) were separately removed per product direction, unrelated to compliance — see tasks.md's
+build-status note for that decision.
+
+**Consequence for risk register**: SDD.md R4 (104.com.tw) should move from "open, narrower
+question pending" to "risk accepted, proceeding via third-party actor" — flagged here for whoever
+next updates SDD.md's risk register, not yet applied to that document in this pass.

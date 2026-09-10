@@ -46,21 +46,29 @@ Postgres database (and, where relevant, real external services — see below):
 - `/v1/applications` — the apply flow: sensitive-question detection (pure
   regex, never LLM-gated, per SDD §10.1), LLM-drafted answer prefill with
   prompt-injection hardening, answer-fingerprint reuse, and status tracking.
-- **Sourcing**: a real crawler against Yourator and the Greenhouse, Lever,
-  Ashby, and Workable ATS APIs, each verified live against real company
-  accounts before any provider code was written (see
-  `../specs/001-job-swipe-apply/BLOCKERS.md` for what was tried and ruled
-  out, e.g. JobsDB HK, 104.com.tw).
+- **Sourcing**: JobsDB Hong Kong and 104.com.tw — the two dominant HK/TW job
+  boards, each sourced via a verified third-party Apify actor
+  (`shahidirfan/jobsdb-scraper`, `youfuxu/taiwan-104-job-scraper`) rather
+  than a direct fetch, since neither site has a workable direct-fetch path
+  (see `../specs/001-job-swipe-apply/BLOCKERS.md`). Both actors were called
+  live and their real output inspected before either provider
+  (`src/sourcing/providers/jobsdb-hk.ts`, `tw104.ts`) was written. Yourator
+  and the Greenhouse/Lever/Ashby/Workable ATS-tracked-company crawl that
+  preceded this were removed entirely (2026-09-10) — these two market-wide
+  boards cover far more HK/TW roles than a curated company list.
 - **Apply route is handoff-only** — after live verification found no ATS
   platform exposes a public third-party submission API (even Greenhouse's
   requires a private employer-issued key), `determineApplyRoute()` in
   `src/sourcing/apply-route.ts` always returns `'handoff'`. The app prepares
-  a prefilled answer sheet; the user submits on the employer's site. See
-  BLOCKERS.md's T067 entry for the options considered.
+  a prefilled answer sheet; the user submits on the employer's site. Now
+  that ATS sourcing is gone, the only source with a known form-schema
+  reader (`apply/schemas/greenhouse.ts`) never actually gets exercised in
+  practice — left in place rather than deleted, since it's still correct
+  and would apply again if an ATS source were reintroduced. See
+  BLOCKERS.md's T067 entry for the fuller history.
 
 Not yet done: APNs push (T079, needs real Apple Developer credentials),
-Firecrawl integration for JS-gated sources (T087), the 104.com.tw provider
-(T088, blocked on a compliance GO decision).
+Firecrawl integration for JS-gated sources (T087).
 
 ## Architecture notes
 
@@ -79,6 +87,13 @@ Firecrawl integration for JS-gated sources (T087), the 104.com.tw provider
   crashing on `.choices[0]` of undefined. This shows up as an occasional
   flake in `tests/integration/cv-intake.test.ts`; it is a documented,
   accepted characteristic of the free tier, not a regression.
+- **Sourcing is via Apify, not direct fetch** — `APIFY_API_TOKEN` in `.env`
+  authenticates `src/sourcing/apify-client.ts`, a thin wrapper around
+  Apify's `run-sync-get-dataset-items` REST endpoint. Each crawl runs a
+  small seed list of role keywords (`JOBSDB_HK_QUERIES`, `TW104_QUERIES`,
+  6 each) through the two actors — kept deliberately small since every
+  actor run is a paid call (JobsDB actor: ~$0.99/1,000 results). Grow the
+  keyword lists deliberately, not by default.
 - **career-ops is a design reference only, never executed** — its scraping
   ethics (honour robots.txt/Crawl-delay, never defeat bot protection),
   provider reconnaissance, and status vocabulary informed this codebase, but

@@ -1,10 +1,6 @@
 import { ingestAll, type IngestSummary } from '../sourcing/ingest.js';
-import { fetchYouratorPostings } from '../sourcing/providers/yourator.js';
-import { fetchGreenhousePostings } from '../sourcing/providers/ats/greenhouse.js';
-import { fetchLeverPostings } from '../sourcing/providers/ats/lever.js';
-import { fetchAshbyPostings } from '../sourcing/providers/ats/ashby.js';
-import { fetchWorkablePostings } from '../sourcing/providers/ats/workable.js';
-import { TRACKED_SOURCES } from '../sourcing/tracked-sources.js';
+import { fetchJobsdbHkPostings } from '../sourcing/providers/jobsdb-hk.js';
+import { fetchTw104Postings } from '../sourcing/providers/tw104.js';
 import { registerHandler, enqueue } from './index.js';
 import { logger } from '../lib/logger.js';
 
@@ -15,29 +11,22 @@ function addSummary(a: IngestSummary, b: IngestSummary): IngestSummary {
 }
 
 /**
- * Crawls every tracked source (FR-004a: the feed itself only ever reads
- * from what's already in Postgres — this is the only place sourcing runs)
- * and re-schedules itself, so a single `crawl` enqueue keeps the feed
- * fresh indefinitely without a separate cron dependency.
+ * Crawls both markets (FR-004a: the feed itself only ever reads from
+ * what's already in Postgres — this is the only place sourcing runs) and
+ * re-schedules itself, so a single `crawl` enqueue keeps the feed fresh
+ * indefinitely without a separate cron dependency.
+ *
+ * 2026-09-10: sourcing narrowed to JobsDB HK + 104.com.tw only (via
+ * Apify — see sourcing/providers/jobsdb-hk.ts and tw104.ts). Yourator and
+ * the Greenhouse/Lever/Ashby/Workable ATS-tracked-company crawl were
+ * dropped per product direction — these two market-wide boards cover far
+ * more HK/TW roles than a curated company list. See BLOCKERS.md.
  */
 export async function handleCrawl(): Promise<void> {
   let summary: IngestSummary = { created: 0, updated: 0, deduped: 0 };
 
-  if (TRACKED_SOURCES.yourator) {
-    summary = addSummary(summary, await ingestAll(fetchYouratorPostings()));
-  }
-  for (const board of TRACKED_SOURCES.greenhouse) {
-    summary = addSummary(summary, await ingestAll(fetchGreenhousePostings(board)));
-  }
-  for (const company of TRACKED_SOURCES.lever) {
-    summary = addSummary(summary, await ingestAll(fetchLeverPostings(company)));
-  }
-  for (const jobBoard of TRACKED_SOURCES.ashby) {
-    summary = addSummary(summary, await ingestAll(fetchAshbyPostings(jobBoard)));
-  }
-  for (const account of TRACKED_SOURCES.workable) {
-    summary = addSummary(summary, await ingestAll(fetchWorkablePostings(account)));
-  }
+  summary = addSummary(summary, await ingestAll(fetchJobsdbHkPostings()));
+  summary = addSummary(summary, await ingestAll(fetchTw104Postings()));
 
   logger.info('crawl_completed', { ...summary });
   await enqueue('rebuild_match', {});

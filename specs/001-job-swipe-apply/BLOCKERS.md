@@ -6,6 +6,22 @@ question for you.
 
 ---
 
+## 2026-09-10 — RESOLVED: sourcing pivot to Apify closes out three entries below
+
+Per your direction ("drop other job sources... for JobsDB go with Apify (shahidirfan/Jobsdb-Scraper)
+... for 104 go with web scrap or again with Apify"), sourcing now runs entirely on two Apify
+actors — see `sourcing/providers/jobsdb-hk.ts` and `tw104.ts`, both live-verified before writing
+any code. This resolves the **JobsDB Hong Kong** entry below (T046 is done) and the **104.com.tw**
+half of the picture (T088 is done). Yourator and the Greenhouse/Lever/Ashby/Workable ATS sourcing
+were removed entirely, which also makes the **Lever/Ashby/Workable** entry below moot (there's no
+longer any ATS sourcing to narrow) and softens the **T067 auto-submit** entry (its core finding —
+no ATS platform has a public submission API — still stands, but nothing sources ATS postings
+anymore, so it's no longer blocking anything in practice). Full details in
+`compliance/risk-acceptance-log.md`'s 2026-09-10 entry and `tasks.md`'s T046/T047/T048/T088
+build-status notes. Original entries below left as-written for the historical record.
+
+---
+
 ## 2026-09-01 — Firecrawl integration (T087) parked — needs an API key
 
 **Status**: Not started, not a code blocker — just needs a credential I don't have.

@@ -1,29 +1,22 @@
 import { prisma } from '../../../src/lib/prisma.js';
 import { handleCrawl } from '../../../src/queue/crawl.js';
-import { TRACKED_SOURCES } from '../../../src/sourcing/tracked-sources.js';
+import { JOBSDB_HK_QUERIES } from '../../../src/sourcing/providers/jobsdb-hk.js';
+import { TW104_QUERIES } from '../../../src/sourcing/providers/tw104.js';
 
-// Mocks the network boundary (every provider's fetch call), not the
-// provider modules themselves — so this exercises the real
-// handleCrawl -> ingestAll -> each real provider's parsing/normalisation
-// code, same as apply-flow.test.ts's approach. Empty results from every
-// source by default; individual tests override `jobsByHost` for the one
-// source they care about.
-const HOST_RESPONDERS: Array<{
-  fragment: string;
-  key: string;
-  body: (jobs: unknown) => unknown;
-}> = [
-  { fragment: 'yourator.co', key: 'yourator', body: (jobs) => ({ payload: { hasMore: false, nextPage: null, jobs: jobs ?? [] } }) },
-  { fragment: 'greenhouse.io', key: 'greenhouse', body: (jobs) => ({ jobs: jobs ?? [] }) },
-  { fragment: 'lever.co', key: 'lever', body: (jobs) => jobs ?? [] },
-  { fragment: 'ashbyhq.com', key: 'ashby', body: (jobs) => ({ jobs: jobs ?? [] }) },
-  { fragment: 'workable.com', key: 'workable', body: (jobs) => ({ name: 't', description: '', jobs: jobs ?? [] }) },
-];
-
-function respondFor(url: string, jobsByHost: Partial<Record<string, unknown>>): Response {
-  const responder = HOST_RESPONDERS.find((r) => url.includes(r.fragment));
-  if (!responder) throw new Error(`unexpected fetch in crawl.test.ts: ${url}`);
-  return new Response(JSON.stringify(responder.body(jobsByHost[responder.key])), { status: 200 });
+// Mocks the network boundary (the Apify REST API), not the provider
+// modules themselves — so this exercises the real handleCrawl ->
+// ingestAll -> each real provider's parsing/normalisation code, same
+// approach as the pre-pivot version of this file. Empty results from
+// every actor call by default; individual tests override `jobsByActor`
+// for the one actor they care about.
+function respondFor(url: string, jobsByActor: Partial<Record<string, unknown>>): Response {
+  if (url.includes('shahidirfan~jobsdb-scraper')) {
+    return new Response(JSON.stringify(jobsByActor.jobsdbHk ?? []), { status: 200 });
+  }
+  if (url.includes('youfuxu~taiwan-104-job-scraper')) {
+    return new Response(JSON.stringify(jobsByActor.tw104 ?? []), { status: 200 });
+  }
+  throw new Error(`unexpected fetch in crawl.test.ts: ${url}`);
 }
 
 const originalFetch = global.fetch;
@@ -37,27 +30,20 @@ afterAll(async () => {
 });
 
 describe('handleCrawl', () => {
-  it('queries every tracked source exactly once and reschedules itself plus a rebuild_match job', async () => {
-    const queriedHosts: string[] = [];
+  it('queries every seed keyword for both markets exactly once and reschedules itself plus a rebuild_match job', async () => {
+    const queriedActors: string[] = [];
     global.fetch = (async (input: RequestInfo | URL) => {
       const url = String(input);
-      queriedHosts.push(new URL(url).hostname);
+      queriedActors.push(url.includes('jobsdb-scraper') ? 'jobsdb-hk' : 'tw104');
       return respondFor(url, {});
     }) as typeof fetch;
 
     await handleCrawl();
 
-    for (const fragment of ['yourator.co', 'greenhouse.io', 'lever.co', 'ashbyhq.com', 'workable.com']) {
-      expect(queriedHosts.some((h) => h.includes(fragment))).toBe(true);
-    }
-    // One request per tracked entry.
-    const expectedRequestCount =
-      1 + // yourator (single board)
-      TRACKED_SOURCES.greenhouse.length +
-      TRACKED_SOURCES.lever.length +
-      TRACKED_SOURCES.ashby.length +
-      TRACKED_SOURCES.workable.length;
-    expect(queriedHosts).toHaveLength(expectedRequestCount);
+    const jobsdbCalls = queriedActors.filter((a) => a === 'jobsdb-hk').length;
+    const tw104Calls = queriedActors.filter((a) => a === 'tw104').length;
+    expect(jobsdbCalls).toBe(JOBSDB_HK_QUERIES.length);
+    expect(tw104Calls).toBe(TW104_QUERIES.length);
 
     expect(await prisma.queueJob.findFirst({ where: { type: 'rebuild_match' } })).not.toBeNull();
 
@@ -69,29 +55,48 @@ describe('handleCrawl', () => {
     expect(nextCrawlJob!.runAfter.getTime()).toBeGreaterThan(Date.now());
   });
 
-  it('actually ingests a real posting into JobPosting when a source returns one', async () => {
+  it('actually ingests real postings from both markets into JobPosting', async () => {
     global.fetch = (async (input: RequestInfo | URL) =>
       respondFor(String(input), {
-        yourator: [
+        jobsdbHk: [
           {
-            id: 999999,
-            name: 'Test Crawl Engineer',
-            path: '/companies/testco/jobs/999999',
-            location: 'Taipei',
-            company: { brand: 'TestCo' },
-            thirdPartyUrl: null,
+            id: '999999',
+            url: 'https://hk.jobsdb.com/job/999999',
+            title: 'Test Crawl Engineer',
+            company: 'TestCo HK',
+            location: 'Central',
+            Description_text: 'Build things.',
+          },
+        ],
+        tw104: [
+          {
+            jobId: 'testref1',
+            jobUrl: 'https://www.104.com.tw/job/testref1',
+            jobName: 'Test Crawl Engineer TW',
+            company: 'TestCo TW',
+            area: '台北市',
+            shortDescription: '打造產品',
           },
         ],
       })) as typeof fetch;
 
     await handleCrawl();
 
-    const posting = await prisma.jobPosting.findFirst({
-      where: { sourceProvider: 'yourator', externalRef: '999999' },
+    const hkPosting = await prisma.jobPosting.findFirst({
+      where: { sourceProvider: 'jobsdb-hk', externalRef: '999999' },
     });
-    expect(posting).not.toBeNull();
-    expect(posting?.title).toBe('Test Crawl Engineer');
+    expect(hkPosting).not.toBeNull();
+    expect(hkPosting?.title).toBe('Test Crawl Engineer');
+    expect(hkPosting?.market).toBe('HK');
 
-    await prisma.jobPosting.deleteMany({ where: { sourceProvider: 'yourator', externalRef: '999999' } });
+    const twPosting = await prisma.jobPosting.findFirst({
+      where: { sourceProvider: 'tw104', externalRef: 'testref1' },
+    });
+    expect(twPosting).not.toBeNull();
+    expect(twPosting?.title).toBe('Test Crawl Engineer TW');
+    expect(twPosting?.market).toBe('TW');
+
+    await prisma.jobPosting.deleteMany({ where: { sourceProvider: 'jobsdb-hk', externalRef: '999999' } });
+    await prisma.jobPosting.deleteMany({ where: { sourceProvider: 'tw104', externalRef: 'testref1' } });
   });
 });

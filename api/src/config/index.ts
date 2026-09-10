@@ -16,6 +16,7 @@ export const config = {
   cvEncryptionKey: process.env.CV_ENCRYPTION_KEY ?? '',
   cvStorageDir: process.env.CV_STORAGE_DIR ?? 'data/cv-storage',
   firecrawlApiKey: process.env.FIRECRAWL_API_KEY ?? '',
+  apifyApiToken: process.env.APIFY_API_TOKEN ?? '',
   authTokenTtlDays: Number(process.env.AUTH_TOKEN_TTL_DAYS ?? 30),
   apns: {
     keyId: process.env.APNS_KEY_ID ?? '',

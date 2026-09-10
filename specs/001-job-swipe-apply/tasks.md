@@ -256,9 +256,9 @@ left (never returns) and right (acknowledged immediately); confirm the end-of-fe
 ### Implementation for User Story 2
 
 - [X] T045 [P] [US2] Define the provider interface and the source-rule enforcement layer in `api/src/sourcing/provider.ts` — host allowlist, robots.txt, crawl-delay, 429 backoff, and a hard prohibition on circumventing bot protection (FR-016a)
-- [ ] T046 [P] [US2] Implement the JobsDB Hong Kong provider in `api/src/sourcing/providers/jobsdb-hk.ts` against SEEK's public v5 search API with `siteKey=HK-Main` — **attempted 2026-08-31, incomplete**: a plain POST returned `Cannot POST`, and probing further (alternate request shapes/headers) was blocked by the coding tool's own safety classifier before establishing the correct request shape. See `compliance/risk-acceptance-log.md` — investigate the correct API contract through documentation or a browser network trace, not further probing, before resuming this task.
-- [X] T047 [P] [US2] Implement the Yourator provider in `api/src/sourcing/providers/yourator.ts` against the public `api/v4/jobs`, preferring each row's employer ATS URL as the dedup key and stripping `utm_*`
-- [X] T048 [P] [US2] Implement the ATS-family providers in `api/src/sourcing/providers/ats/` (Greenhouse, Lever, Ashby, Workable) filtered to HK/TW locations
+- [X] T046 [P] [US2] Implement the JobsDB Hong Kong provider in `api/src/sourcing/providers/jobsdb-hk.ts` — **resolved 2026-09-10 via a different technical approach.** The direct-fetch attempt (2026-08-31) stays incomplete as originally noted below, but Product directed a pivot to the Apify actor `shahidirfan/jobsdb-scraper`, which already has the correct request shape figured out (confirmed live 2026-09-10: real HK postings returned with real field names, before this provider was written). Same ToS risk already accepted 2026-08-31 — see `compliance/risk-acceptance-log.md`'s 2026-09-10 entry. Original attempt note preserved: a plain POST returned `Cannot POST`, and probing further (alternate request shapes/headers) was blocked by the coding tool's own safety classifier before establishing the correct request shape.
+- [X] ~~T047 [P] [US2] Implement the Yourator provider~~ — **removed 2026-09-10.** Product decided to drop Yourator and the ATS-tracked-company sourcing entirely in favour of JobsDB HK + 104.com.tw as the sole sourcing strategy ("we do not need to follow career-ops 100%" — the tracked-company-list pattern was inherited from career-ops's design, not load-bearing on its own). The code was real, tested, and working when built; it's been deleted, not just disabled — see `src/queue/crawl.ts`'s current build-status note.
+- [X] ~~T048 [P] [US2] Implement the ATS-family providers~~ — **removed 2026-09-10**, same decision as T047 above. Consequence for T064/T067 below: neither Greenhouse-sourced postings nor any ATS auto-submit target will occur anymore under normal crawling, though the code (apply/schemas/greenhouse.ts, apply/handoff.ts's Greenhouse branch) is left in place rather than deleted — it's still correct, still tested, and would immediately become live again if an ATS source were ever reintroduced.
 - [X] T049 [US2] Implement normalisation and de-duplication in `api/src/sourcing/normalise.ts` — canonical `JobPosting`, dedup on `employerApplyUrl`, language and market detection (depends on T045)
 - [X] T050 [US2] Implement the bilingual skill taxonomy in `api/src/matching/taxonomy/` with zh-Hant ↔ English skill and title pairs
 - [X] T051 [US2] Implement deterministic ranking in `api/src/matching/rank.ts` writing `FeedEntry` rows — keyword overlap, title/role match, YoE band, market. No LLM at feed scale (depends on T032, T050)
@@ -309,6 +309,43 @@ left (never returns) and right (acknowledged immediately); confirm the end-of-fe
 > OpenRouter 200-with-error-payload response under concurrent free-tier load — `llm/client.ts`
 > hardened to fail with a clear `LlmResponseError` instead of crashing on that shape, confirmed
 > green on rerun), tsc and eslint clean.
+
+> **Sourcing pivot (2026-09-10)** — Product decided to drop Yourator and the ATS-tracked-company
+> crawl entirely ("we do not need to follow career-ops 100%") and go all-in on the two dominant
+> HK/TW job boards instead, sourced via Apify actors rather than direct fetch:
+> - **T046 (JobsDB HK)** and **T088 (104.com.tw)**, both previously blocked, are now done —
+>   `sourcing/providers/jobsdb-hk.ts` (actor `shahidirfan/jobsdb-scraper`) and
+>   `sourcing/providers/tw104.ts` (actor `youfuxu/taiwan-104-job-scraper`). Both actors were called
+>   live and their real output inspected before either provider was written — same discipline as
+>   every other external integration this session. A second 104.com.tw actor candidate
+>   (`corvuslab/taiwan104-jobs-scraper`) was ruled out after two live runs both failed with the
+>   same error: its Docker image is missing a Playwright browser binary — a bug in their build, not
+>   ours.
+> - **T047 (Yourator) and T048 (ATS providers)** are removed, not just disabled —
+>   `sourcing/providers/yourator.ts`, `sourcing/providers/ats/*.ts`, and `sourcing/tracked-sources.ts`
+>   are deleted, along with their dedicated test files. `sourcing/provider.ts` (the polite-fetch/
+>   host-allowlist helper) stays — it's still used by `apply/schemas/greenhouse.ts`'s form-schema
+>   reader, which is untouched (see T064/T067 notes below).
+> - **`queue/crawl.ts` rewritten**: no more per-tracked-company iteration; instead runs a small seed
+>   list of broad role-category keywords (`JOBSDB_HK_QUERIES`, `TW104_QUERIES`) per market through
+>   each actor. Kept deliberately small (6 keywords each, 20 results per keyword) since every actor
+>   run is a paid Apify call — grown by product over time, same operational-config framing
+>   `tracked-sources.ts` used to carry.
+> - **New risk acceptance recorded** in `compliance/risk-acceptance-log.md` (2026-09-10 entry):
+>   JobsDB HK via Apify carries the same ToS risk already accepted 2026-08-31 (the actor calls the
+>   same public v5 search endpoint, just with the correct request shape). 104.com.tw via Apify is a
+>   **materially new** decision beyond the 2026-08-31 log's explicit carve-out — that actor uses
+>   browser automation to get past 104.com.tw's bot detection, which the earlier entry specifically
+>   said accepting the ToS risk did not, by itself, cover. This was Product's direct, explicit
+>   instruction, recorded for the compliance history rather than silently absorbed.
+> - **Consequence for T064/T067**: with no Greenhouse-sourced postings occurring under normal
+>   crawling anymore, the Greenhouse form-schema reader (T064) and the paused ATS submitter (T067)
+>   are dormant in practice — still correct, still tested, left in place rather than deleted, and
+>   would become live again immediately if an ATS source were ever reintroduced. The underlying
+>   T067 finding (no ATS platform exposes a public third-party submission API) still stands; it's
+>   just less load-bearing now that ATS sourcing itself is gone.
+> - **194/194 tests passing**, coverage 88.13%/73.77%/89.4%/89.1% (still above the 80/70/80/80
+>   gate), tsc and eslint clean.
 
 ---
 
@@ -463,7 +500,7 @@ mark one `interview` and confirm it persists; confirm an illegal transition is r
 - [X] T086 [P] Prompt-injection hardening — JD text is data, never instruction, and can never authorise a submission (SDD §10.1)
   - **Build status**: Done. `<<<DELIMITER>>>`-style markers plus explicit "untrusted data" framing added around JD/CV/question text in `src/cv/interpret.ts` and `src/apply/prefill.ts`'s prompts. Sensitive-question classification (the one place an injected instruction could actually cause harm — authorizing a submission) is pure regex in `src/apply/sensitive.ts`, never LLM-based, so it structurally can't be talked out of a correct classification. A regression test proves extra/injected JSON fields from a compromised LLM response are never read.
 - [ ] T087 [P] Firecrawl integration in `api/src/sourcing/firecrawl.ts` for JS-gated sources only, with an assertion that no CV or profile PII is ever sent
-- [ ] T088 Implement the 104.com.tw provider in `api/src/sourcing/providers/tw104.ts` (**gated on T001's GO for this source**)
+- [X] T088 Implement the 104.com.tw provider in `api/src/sourcing/providers/tw104.ts` (**gated on T001's GO for this source**) — **resolved 2026-09-10.** Direct fetch stays a NO-GO (every attempt 403s, per T001). Product directed a different technical approach: the Apify actor `youfuxu/taiwan-104-job-scraper` (picked over `corvuslab/taiwan104-jobs-scraper`, whose current build is broken — confirmed live via two failed runs, missing a Playwright browser binary in its own Docker image). This is a materially new risk-acceptance beyond T001's original NO-GO — the actor's build traceback confirms it uses browser automation, i.e. it is actively working around 104.com.tw's bot detection on our behalf, not just replaying a public API shape (contrast with T046/JobsDB HK, where the same ToS risk was already accepted and Apify just supplies the correct request shape). See `compliance/risk-acceptance-log.md`'s 2026-09-10 entry — this was Product's explicit, direct instruction, not an inference made here.
 - [X] T089 [P] Coverage audit to ≥80% on business logic, view models, and services; close any gap (constitution II)
   - **Build status**: Done. Thresholds (80/70/80/80) configured in `jest.config.js`, excluding thin plumbing (`server.ts`/`worker.ts`). Full-suite run: 193/193 tests passing (1 documented OpenRouter free-tier flake on first attempt, confirmed by retry — see `LLM_MODEL too slow` entry in prior build notes), overall coverage 88.95% stmts / 73.79% branch / 90.3% funcs / 89.91% lines. Closed real 0%-coverage gaps: `src/queue/crawl.ts` (now 94.11%), `src/queue/rebuild-match.ts` (now 88.88%), `src/lib/crypto.ts` (now 100% — previously every other test file mocked it out), `src/llm/client.ts` (now 100% — previously only exercised indirectly via a fake client, never given a direct unit test of its own HTTP/error-handling logic). Also deleted `src/matching/taxonomy/index.ts`'s `haveSharedMeaning` export as genuinely dead code (zero call sites) rather than writing tests to cover it, per ponytail discipline.
 - [X] T090 [P] Update `CLAUDE.md` and add `api/README.md` + `ios/README.md` with setup and architecture pointers
