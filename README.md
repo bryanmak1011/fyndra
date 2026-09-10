@@ -5,7 +5,7 @@ roles, swipe left to reject and right to apply. The backend prepares each applic
 profile and either submits it to a supported applicant tracking system or hands you a reviewed
 answer sheet to finish yourself.
 
-Currently in specification and planning. No application code yet.
+Backend is built and tested; the iOS app is not started.
 
 ## Status
 
@@ -14,8 +14,14 @@ Currently in specification and planning. No application code yet.
 | Specify | [spec.md](specs/001-job-swipe-apply/spec.md) | Draft, rev 3 |
 | Plan | [plan.md](specs/001-job-swipe-apply/plan.md) | Draft, rev 3 |
 | Design | [SDD.md](specs/001-job-swipe-apply/SDD.md) | Draft, v3 |
-| Tasks | [tasks.md](specs/001-job-swipe-apply/tasks.md) | 92 tasks, ready |
-| Build | — | Not started |
+| Tasks | [tasks.md](specs/001-job-swipe-apply/tasks.md) | 92 tasks, ~60 done |
+| Build | [api/README.md](api/README.md) | Backend (`api/`) complete for all four user stories; iOS has only a Swift package and no Xcode project yet, see [ios/README.md](ios/README.md) |
+
+Auto-submit is currently handoff-only: no ATS platform (Greenhouse included)
+exposes a public, third-party submission API without an employer-issued
+credential, so every application is prepared as an answer sheet for the user
+to submit themselves. See [BLOCKERS.md](specs/001-job-swipe-apply/BLOCKERS.md)
+for the full finding and the options it leaves open.
 
 ## Documents
 
@@ -37,18 +43,24 @@ Everything lives under [`specs/001-job-swipe-apply/`](specs/001-job-swipe-apply/
 
 ## Shape of the system
 
-- **iOS client** — Swift 6, SwiftUI, MVVM with `@Observable`, iOS 17+. Presentation only.
+- **iOS client** — Swift 6, SwiftUI, MVVM with `@Observable`, iOS 17+. Presentation only. Today
+  this is a standalone `FyndraCore` Swift package (API client, contract models) plus an empty
+  folder structure — no `.xcodeproj` exists yet, see [ios/README.md](ios/README.md).
 - **API + worker** — TypeScript, Express, Prisma, PostgreSQL, in Docker. Owns all data and logic.
-- **Job sourcing** — one provider per source. Hong Kong via JobsDB (SEEK's public search API),
-  Taiwan via Yourator and, later, 104.com.tw; plus applicant tracking systems for multinational
-  roles based in either market.
+  Implemented and tested end to end, see [api/README.md](api/README.md).
+- **Job sourcing** — Hong Kong via JobsDB and Taiwan via 104.com.tw, the two dominant boards in
+  each market, each sourced through a verified Apify actor rather than a direct fetch (neither
+  site has a workable direct-fetch path). Yourator and ATS-tracked-company sourcing were dropped
+  entirely on 2026-09-10 in favor of these two market-wide boards.
 
 LinkedIn and Indeed are deliberately excluded: both prohibit automated access.
 
 ## Design principles worth knowing up front
 
 - **Auto-submit is allowlist-gated.** Applications are submitted directly only to applicant
-  tracking systems with published form schemas. Everything else is prepared and handed to the user.
+  tracking systems with published form schemas. Everything else is prepared and handed to the
+  user. In practice, no platform currently qualifies (see Status above), so every application
+  goes through handoff today.
 - **Sensitive questions are never auto-answered.** Work authorization, visa status, identity
   numbers, expected salary, and demographics always go back to the user.
 - **We never store your platform passwords.** Submission targets endpoints that accept an
