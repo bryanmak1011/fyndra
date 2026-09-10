@@ -64,7 +64,12 @@ LinkedIn and Indeed are deliberately excluded: both prohibit automated access.
 - **Sensitive questions are never auto-answered.** Work authorization, visa status, identity
   numbers, expected salary, and demographics always go back to the user.
 - **We never store your platform passwords.** Submission targets endpoints that accept an
-  application without a candidate login.
+  application without a candidate login. **Scoped exception (2026-09-10,
+  `specs/001-job-swipe-apply/compliance/risk-acceptance-log.md`)**: a personal-test-only,
+  single-profile-gated browser-automation path (`api/src/browser-agent/`) drives JobsDB HK's and
+  104.com.tw's own native apply flow, which does require being logged in. It never sees or stores
+  the raw password — only an encrypted, captured browser session (cookies/localStorage), captured
+  once by hand outside the app. Not enabled for any profile other than the configured test one.
 - **Sources that block automated access are dropped, not circumvented.** We honour `robots.txt`,
   crawl-delay, and rate limits.
 - **Volume is capped.** Per-user daily and per-employer limits, enforced server-side.

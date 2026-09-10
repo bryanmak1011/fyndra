@@ -30,6 +30,7 @@ enum SubmissionMode {
 enum ApplyRoute {
   direct_submit_allowlisted
   handoff
+  browser_automated
 }
 
 enum CvFileFormat {
@@ -50,6 +51,13 @@ enum SwipeDirection {
 
 // Pre-submission states the system owns, then post-submission states the
 // user reports (FR-011a) — see data-model.md "Status vocabulary".
+//
+// `auto_submitted` is deliberately distinct from `applied`: `applied` is
+// only ever set by the user's own confirm action (see state-machine.ts's
+// comment). A browser-automation click is system-attested, not
+// user-attested, so it lands on its own status backed by a
+// `SubmissionAttempt` evidence row rather than being conflated with the
+// user-confirmed path.
 enum ApplicationStatus {
   queued
   awaiting_review
@@ -57,12 +65,23 @@ enum ApplicationStatus {
   handed_off
   needs_attention
   applied
+  auto_submitted
   responded
   interview
   offer
   hired
   rejected
   withdrawn
+}
+
+enum SubmissionAttemptOutcome {
+  pending_click
+  submitted
+  failed_selector
+  failed_bot_wall
+  failed_captcha
+  failed_session_expired
+  failed_unknown
 }
 
 enum AnswerSource {
@@ -224,8 +243,32 @@ model Application {
   statusHistory     ApplicationStatusEvent[]
   questions         ApplicationQuestion[]
   proposedAnswers   ProposedAnswer[]
+  submissionAttempts SubmissionAttempt[]
 
   @@index([status])
+}
+
+// Evidence/audit trail for browser-automated submission (api/src/browser-agent).
+// One row per real submit-click attempt — deliberately NOT one row per
+// QueueJob retry: the handler checks for an existing `submitted` (or a
+// recent `pending_click`) row before ever touching the browser again, so
+// a QueueJob retry does not imply a second real click. See browser-agent/
+// index.ts's idempotency check.
+model SubmissionAttempt {
+  id            String                   @id @default(uuid())
+  applicationId String
+  application   Application              @relation(fields: [applicationId], references: [id], onDelete: Cascade)
+  provider      String
+  attemptNumber Int
+  startedAt     DateTime                 @default(now())
+  finishedAt    DateTime?
+  outcome       SubmissionAttemptOutcome
+  screenshotPath String?
+  finalUrl      String?
+  errorDetail   String?
+  createdAt     DateTime                 @default(now())
+
+  @@index([applicationId, startedAt])
 }
 
 model ApplicationStatusEvent {

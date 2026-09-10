@@ -1,4 +1,5 @@
 import type { ApplyRoute } from '@prisma/client';
+import { isBrowserAutomationAllowed } from '../browser-agent/gate.js';
 
 // FR-009: direct submission is only ever attempted against an ATS with a
 // published form schema AND a submission channel we can actually use.
@@ -35,4 +36,35 @@ export function determineApplyRoute(employerApplyUrl: string | null): ApplyRoute
   } catch {
     return 'handoff';
   }
+}
+
+// Providers with a real (if still unverified — see the module comment in
+// each providers/*.ts file) browser-automation driver. tw104 is
+// deliberately excluded until jobsdb-hk.ts is verified end-to-end (see the
+// plan's phasing) — routing an application there today would just fail
+// through to needs_attention, so there's no benefit to including it early.
+const BROWSER_AUTOMATED_PROVIDERS = new Set(['jobsdb-hk']);
+
+/**
+ * This is a *per-Application* decision, not baked into JobPosting.applyRoute
+ * (which is set once, globally, at ingest time — before any profile is
+ * involved, see sourcing/ingest.ts). Browser-automated submission is scoped
+ * to one personal-test profile (see browser-agent/gate.ts,
+ * compliance/risk-acceptance-log.md's 2026-09-10 entry), so it can only be
+ * decided once a specific profile is swiping — i.e. here, at swipe time
+ * (routes/swipes.ts), not at crawl time. Falls back to the posting's own
+ * applyRoute (today always `handoff`) for every other profile.
+ */
+export function resolveApplyRoute(
+  profileId: string,
+  posting: { applyRoute: ApplyRoute; sourceProvider: string; employerApplyUrl: string | null },
+): ApplyRoute {
+  if (
+    posting.employerApplyUrl &&
+    BROWSER_AUTOMATED_PROVIDERS.has(posting.sourceProvider) &&
+    isBrowserAutomationAllowed(profileId)
+  ) {
+    return 'browser_automated';
+  }
+  return posting.applyRoute;
 }

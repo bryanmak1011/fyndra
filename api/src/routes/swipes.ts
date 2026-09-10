@@ -4,6 +4,7 @@ import { prisma } from '../lib/prisma.js';
 import { ApiError, Errors } from '../lib/errors.js';
 import { submissionsToday, openApplicationsForEmployer } from '../lib/caps.js';
 import { enqueue } from '../queue/index.js';
+import { resolveApplyRoute } from '../sourcing/apply-route.js';
 
 export const swipesRouter = Router();
 
@@ -86,7 +87,7 @@ swipesRouter.post('/:jobId/swipe', async (req, res, next) => {
     data: {
       jobInteractionId: interaction.id,
       submissionMode: profile.submissionMode,
-      applyRoute: posting.applyRoute,
+      applyRoute: resolveApplyRoute(profileId, posting),
       employerApplyUrl: posting.employerApplyUrl,
       status: 'queued',
     },

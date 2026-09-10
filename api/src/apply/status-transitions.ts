@@ -6,6 +6,7 @@
 // correctly rejected.
 const VALID_TRANSITIONS: Record<string, string[]> = {
   applied: ['responded', 'rejected', 'withdrawn'],
+  auto_submitted: ['responded', 'rejected', 'withdrawn'],
   responded: ['interview', 'rejected', 'withdrawn'],
   interview: ['offer', 'rejected', 'withdrawn'],
   offer: ['hired', 'rejected', 'withdrawn'],

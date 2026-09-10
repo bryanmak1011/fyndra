@@ -86,3 +86,71 @@ build-status note for that decision.
 **Consequence for risk register**: SDD.md R4 (104.com.tw) should move from "open, narrower
 question pending" to "risk accepted, proceeding via third-party actor" — flagged here for whoever
 next updates SDD.md's risk register, not yet applied to that document in this pass.
+
+---
+
+## 2026-09-10 — Browser-automated submission via JobsDB HK's / 104.com.tw's own native apply flow
+
+**Finding overridden**: `BLOCKERS.md`'s 2026-09-01 entry ("no ATS platform supports true
+third-party auto-submission", T067) plus two standing design commitments this decision knowingly
+supersedes for a narrow, explicitly scoped case: README's *"we never store your platform
+passwords"* and career-ops's D2 precedent (adopted into this project's own design) of *"never
+clicks a submit/apply control."* Also engages the constitution's Principle VI (no
+undocumented-endpoint/selector guessing for a consequential action) and SDD.md's R1 (App Store
+Guideline 5.2.2, third-party authorization) and R13 (this exact build-paused finding).
+
+**Decision**: Product explicitly chose option 3 of BLOCKERS.md's three — *"explicitly decide to
+build browser-automation submission anyway, accepting the ToS/App Store/account-ban risk"* —
+rather than staying handoff-only or pursuing ATS API partnerships. Scoped explicitly, in the same
+conversation, to:
+
+- **Target**: JobsDB HK's and 104.com.tw's own native "apply" flow directly (not Greenhouse/ATS
+  platforms — current sourcing, per the 2026-09-10 entry above, no longer pulls ATS-hosted
+  postings, so there is nothing for a Greenhouse-style submitter to attach to today).
+- **Rollout**: personal-test only — gated to exactly one `UserProfile.id`
+  (`BROWSER_AUTOMATION_TEST_PROFILE_ID`), not a general feature. See `browser-agent/gate.ts`.
+- **Bot-detection stance**: the agent may use anti-detection/stealth measures if it hits a bot
+  wall. This is explicitly the same class of decision the 2026-09-10 entry above flagged as
+  "materially new, not covered by" a plain ToS-risk acceptance — here taken one step further,
+  since it applies to a live, side-effecting submission click rather than read-only scraping. A
+  wrong click on a real application is a worse failure mode than a wrong scrape, which is why the
+  design (below) treats a bot wall as a hard failure into `needs_attention` rather than silently
+  retrying through it — evasion is permitted as an accepted risk, not built as an assumed default.
+
+**What this decision does and does not cover**:
+
+- **Covers**: JobsDB HK's native apply flow, for the one personal-test profile, using a *captured
+  session* (Playwright `storageState` — cookies/localStorage from one real, hand-typed login) to
+  act as that logged-in user. The raw account password is never typed into, stored by, or seen by
+  any Fyndra code — see `browser-agent/session.ts` and `scripts/capture-session.ts`. This is the
+  concrete reconciliation of README's password claim: the blanket claim no longer holds without
+  qualification and needs its wording updated (tracked below), but no password custody is added —
+  session-state capture is a narrower, different thing.
+- **Does NOT yet cover**: 104.com.tw (`browser-agent/providers/tw104.ts` is a stub — deliberately
+  deferred until JobsDB HK is verified end-to-end, since 104.com.tw compounds this risk with the
+  already-accepted bot-wall/stealth requirement from the entry above). Does not cover any
+  general/multi-user rollout — that would need its own, separate, explicit decision, same as this
+  one was.
+- **Does NOT cover** guessing the real DOM/selectors for either site's apply flow. Per the
+  constitution, `providers/jobsdb-hk.ts` is left throwing a descriptive "not yet verified" error
+  rather than shipping guessed selectors — it needs a live, hands-on verification pass (see that
+  file's module comment) before it can actually click anything.
+
+**Consequence for engineering**: `ApplyRoute` gains `browser_automated`; `ApplicationStatus` gains
+`auto_submitted` (kept distinct from the user-confirmed `applied`, since this path is
+system-attested, not user-attested); new `SubmissionAttempt` model is the evidence/audit trail and
+the idempotency guard (a browser click, unlike an API POST, has no natural idempotency key — see
+`browser-agent/index.ts`'s comment). `sourcing/apply-route.ts` gained `resolveApplyRoute`, a
+per-Application (per-swipe) override — `JobPosting.applyRoute` stays a global, profile-agnostic
+value computed at ingest time, since personal-test gating can only be evaluated once a specific
+profile is swiping. T067 is effectively re-opened under this new design rather than staying
+permanently paused.
+
+**Consequence for risk register**: SDD.md R13 moves from "Critical, build paused" to
+"personal-test browser automation accepted, see this entry" (2026-09-10). R1's mitigation text
+needs updating to reflect that browser-automation-based submission is now deliberately in scope
+for a personal-test profile, not ruled out — App Store risk is deferred, not closed, since this
+build never ships inside the iOS client (it's a laptop/server-side worker process) but the product
+as a whole still carries Guideline 5.2.2/4.3 exposure once/if this ever becomes a general feature.
+README.md's "we never store your platform passwords" bullet needs a scoped caveat (session-state,
+not password custody; personal-test only) rather than standing as an now-inaccurate blanket claim.
