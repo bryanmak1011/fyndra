@@ -540,6 +540,230 @@ cloud deployment is Phase 2's first task — not a detail to discover at submiss
 
 ---
 
+## 14. Solution Diagrams
+
+Consolidated views for review. Each complements, rather than replaces, the diagram already
+embedded near its detail: §3 is the *external* context (trust boundaries, who we talk to);
+this section adds the *internal* container/component view. §6.5 already diagrams the apply
+subsystem in isolation; the process diagram below places it in the full user lifecycle.
+[data-model.md](./data-model.md) already has the `Application` status state machine; the ERD
+below adds the relationships between all nine entities.
+
+### 14.1 Process diagram — end-to-end lifecycle
+
+Two independent processes feed each other: **CV intake** (left) updates the profile that
+**feed build** (right) ranks against; the **swipe → apply** chain in the middle is what §6.5
+zooms into. `queued` is returned to the client in well under 300 ms (D8); every step after
+that is the worker, off the request path.
+
+```mermaid
+flowchart TD
+    subgraph intake["CV intake — §9"]
+        A1["CV uploaded"] --> A2{"Format + text\nlayer OK?"}
+        A2 -->|no| A3["422 rejected:\nunsupported_format /\nno_text_layer /\npassword_protected"]
+        A2 -->|yes| A4["Worker: extract text\n(PDF text-layer + DOCX)"]
+        A4 --> A5["Worker: LLM interpret\n→ keywords + YoE"]
+        A5 --> A6["User confirms/edits\n(FR-003, never applied silently)"]
+        A6 --> A7["Profile updated"]
+    end
+
+    subgraph feed["Feed build — §9"]
+        B1["Cron: crawl Tier 1/2\nsources"] --> B2["Normalise →\ncanonical JobPosting"]
+        B2 --> B3["Dedup on\nemployerApplyUrl"]
+        B3 --> B4["Liveness check"]
+        B4 --> B5["Deterministic pre-rank\nvs. every profile"]
+        B5 --> B6[("FeedEntry rows")]
+    end
+
+    A7 -.->|"match rebuild\nqueued"| B5
+
+    B6 --> C1["GET /jobs/feed\n(excludes swiped postings, FR-014)"]
+    C1 --> C2{"Swipe"}
+    C2 -->|left| C3["JobInteraction\ndirection=left\n— never resurfaces"]
+    C2 -->|right| C4["JobInteraction direction=right\n+ Application: queued\n202 in <300ms (D8)"]
+
+    C4 --> D1["Worker: prefill\n(profile + CV + LLM) — §6.5"]
+    D1 --> D2{"Sensitive field?\n(legal/visa/salary/demographic)"}
+    D2 -->|yes| D3["pending_needs_answer\n+ APNs push"]
+    D2 -->|no| D4{"submissionMode"}
+    D4 -->|review_before_sending| D5["awaiting_review\n(answer sheet to app)"]
+    D4 -->|auto_submit| D6{"ATS allowlisted\n+ caps ok?"}
+    D6 -->|no| D5
+    D6 -->|yes| D7["OUR submitter posts form"]
+    D5 -->|user confirms| D7
+    D3 -->|user answers| D4
+    D7 --> D8out["applied"]
+    D7 -->|"captcha / multi-step / error"| D9["needs_attention\n+ classified reason"]
+
+    D8out --> E1["User-reported progression (FR-011a):\nresponded → interview → offer → hired\n(or rejected / withdrawn at any point)"]
+```
+
+### 14.2 Architecture diagram — containers & components
+
+Elaborates §4's three deployable units down to the module boundaries in §5. Solid arrows are
+calls on the request/job path; the dashed arrow is the asynchronous push notification.
+
+```mermaid
+graph TB
+    subgraph client["ios/Fyndra — Swift 6 / SwiftUI, iOS 17+"]
+        VM["Feature ViewModels\nProfile · JobFeed · ApplicationTracking · Settings\n(MVVM, @Observable — §6.1)"]
+        NET["Hand-authored URLSession client\nBaseURLProvider (DEBUG: localhost/ngrok, RELEASE: cloud)"]
+        VM --> NET
+    end
+
+    subgraph docker["docker compose — developer machine (§11.1)"]
+        subgraph api["api — Node 22 / Express / TS"]
+            RT["routes/\nauth · profile · cv · feed ·\nswipes · applications · questions · devices"]
+            MWARE["middleware/\nauth · validation · rate-limits · error mapping"]
+            RT --- MWARE
+        end
+
+        subgraph worker["worker — same image, separate process (D8)"]
+            Q["queue/\ncrawl · parse-cv · rebuild-match · submit · poll-status"]
+            SRC["sourcing/\nproviders/ + normalise.ts"]
+            MATCH["matching/\nsegment · taxonomy · rank"]
+            APPLY["apply/\nprefill · submit-ats · sensitive · handoff"]
+            CVMOD["cv/\nextract · interpret"]
+            LLMMOD["llm/\ndirect SDK calls, modes/-derived prompts"]
+            Q --> SRC
+            Q --> MATCH
+            Q --> APPLY
+            Q --> CVMOD
+            CVMOD --> LLMMOD
+            APPLY --> LLMMOD
+        end
+
+        PG[("Postgres 16\nsystem of record — single source of truth")]
+    end
+
+    subgraph ext["External systems — §3"]
+        SOURCES["hk.jobsdb.com · yourator.co ·\nTW boards · Greenhouse/Lever/Ashby/Workable"]
+        FC["Firecrawl\n(JS-gated pages only, no PII — §6.3)"]
+        LLMEXT["LLM API\n(Gemini / OpenAI-compatible)"]
+        APNSEXT["APNs"]
+    end
+
+    NET -->|"REST / OpenAPI, bearer auth"| RT
+    RT --> PG
+    RT -->|"enqueue job"| Q
+    SRC --> SOURCES
+    SRC --> FC
+    APPLY -->|"submit (allowlist only)"| SOURCES
+    LLMMOD --> LLMEXT
+    Q --> PG
+    Q -->|"status change → push"| APNSEXT
+    APNSEXT -.->|"push"| client
+
+    style client fill:none,stroke-width:2px
+    style docker fill:none,stroke-width:2px
+    style ext fill:none,stroke-dasharray:3 3
+```
+
+### 14.3 Data model diagram — entity relationships
+
+All nine entities from [data-model.md](./data-model.md), Postgres-only (no external mirror,
+§7). Cardinalities follow that document's validation rules: `CvDocument` is one-current-per-
+profile (latest supersedes prior); `JobInteraction` and `FeedEntry` are each unique on
+`(profileId, jobPostingId)`; `Application` is 1:1 with the `JobInteraction` that created it.
+
+```mermaid
+erDiagram
+    UserProfile ||--o{ CvDocument : uploads
+    UserProfile ||--o{ FeedEntry : "ranked for"
+    UserProfile ||--o{ JobInteraction : swipes
+    UserProfile ||--o{ ApplicationQuestion : "owns (reuse lookup)"
+    JobPosting ||--o{ FeedEntry : "ranked in"
+    JobPosting ||--o{ JobInteraction : "swiped on"
+    JobInteraction ||--o| Application : "right swipe creates"
+    Application ||--o{ ApplicationStatusEvent : history
+    Application ||--o{ ApplicationQuestion : asks
+    Application ||--o{ ProposedAnswer : "answer sheet"
+
+    UserProfile {
+        uuid id PK
+        string email UK
+        int yoe
+        string_array keywords
+        enum submissionMode "review_before_sending, auto_submit"
+        enum_array markets "HK, TW"
+        enum preferredLanguage "zh-Hant, en"
+        int dailySubmissionCap
+        int perEmployerCap
+    }
+    CvDocument {
+        uuid id PK
+        uuid profileId FK
+        enum fileFormat "pdf, docx"
+        string storageRef "PII-partitioned store"
+        enum detectedLanguage "zh-Hant, en, mixed"
+        enum parseStatus "parsing, succeeded, failed"
+        enum languageSegmenter "cjk, whitespace"
+    }
+    JobPosting {
+        uuid id PK
+        string sourceProvider
+        string employerApplyUrl "dedup key"
+        string externalRef
+        string title
+        string employer
+        enum language "zh-Hant, en, mixed"
+        enum market "HK, TW"
+        enum applyRoute "direct_submit_allowlisted, handoff"
+        timestamp livenessCheckedAt
+    }
+    FeedEntry {
+        uuid id PK
+        uuid profileId FK
+        uuid jobPostingId FK
+        float matchScore
+        timestamp rankedAt
+    }
+    JobInteraction {
+        uuid id PK
+        uuid profileId FK
+        uuid jobPostingId FK
+        enum direction "left, right"
+        timestamp createdAt
+    }
+    Application {
+        uuid id PK
+        uuid jobInteractionId FK "unique, 1:1"
+        enum submissionMode "snapshot at swipe time"
+        enum applyRoute "copied from JobPosting"
+        enum status "see data-model.md state machine"
+        string failureReason
+        string lastAttemptRef
+        timestamp submittedAt
+    }
+    ApplicationStatusEvent {
+        uuid id PK
+        uuid applicationId FK
+        enum status
+        timestamp occurredAt
+        string note
+    }
+    ApplicationQuestion {
+        uuid id PK
+        uuid applicationId FK
+        uuid profileId FK
+        string questionText
+        string questionFingerprint
+        bool isSensitive
+        string answer
+    }
+    ProposedAnswer {
+        uuid id PK
+        uuid applicationId FK
+        string fieldId
+        string label
+        string answer
+        enum source "profile, cv, reused_answer, generated"
+        bool editedByUser
+    }
+```
+
+---
+
 ## Appendix A: Review of earlier planning
 
 Findings from reading career-ops at source, and what changed. Items marked **✗ premise invalid**
