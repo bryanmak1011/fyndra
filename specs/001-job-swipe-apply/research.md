@@ -110,6 +110,75 @@ below still cites a file, because the reconnaissance is exactly what we are reus
   `jd-skill-gap.mjs`, `skill-extract.mjs`, `title-keywords.mjs`, `role-matcher.mjs` are reusable);
   LLM evaluation runs only on user intent.
 
+## Structured answer drafting: the Choice/Score/Noul contract (decided 2026-09-21, sharpened for Architecture Board)
+
+- **Status**: Decided 2026-09-21, ahead of Architecture Board review. Not yet implemented —
+  `apply/prefill.ts` still runs entirely on the generic OpenAI-compatible `LlmClient` described
+  above.
+- **Background**: the proposal that went into this review (2026-09-20) was to draft choice-type
+  prefill fields via Typesafe AI's **Jev**, a "System One" model exposing typed decision primitives
+  — `Choice` (pick one of N options), `Score` (rubric score), `Noul` (boolean truth value) — each
+  returned with a probability/confidence, rather than free text to parse. Verified against
+  TypeSafe's own material (2026-09-21): Jev is real (launched 2026-09-19) but is **hosted-only,
+  behind an early-access waitlist, with no published weights and no on-prem/self-host option** —
+  see sources below. That rules out self-hosting Jev itself.
+- **Decision**: do **not** integrate TypeSafe's hosted Jev API. Instead, **reimplement the same
+  `state` + `Choice`/`Score`/`Noul` request contract in TypeScript, against Fyndra's existing,
+  already-privacy-reviewed OpenAI-compatible `LlmClient` provider** — the same pattern TypeSafe's
+  own official `system-one-adapter-python` (MIT-licensed) uses: native structured outputs or a
+  prompted-JSON fallback with corrective retries, no TypeSafe account or data transfer involved.
+  This was previously considered and rejected in this document as "a hand-rolled version
+  reproduces the problem without vendor-side reliability/latency tuning" — TypeSafe's own
+  reference implementation undercuts that rejection, since it's the identical pattern, now
+  vendor-validated rather than invented from scratch. The adapter itself is Python; Fyndra ports
+  the pattern, not the library.
+- **Rationale** (unchanged from the original proposal): `draftAnswer()` today prompts the LLM to
+  "answer with EXACTLY one of these labels" for choice-type fields and string-matches the raw text
+  response, treating the literal string `"UNKNOWN"` as the no-answer signal (`prefill.ts`). A typed
+  `Choice` result — `{choice, probabilities, confidence}` — removes that fragile exact-label-match
+  step and replaces the binary "got text or didn't" pending-question decision with a real
+  confidence score to threshold on.
+- **Scope**: choice-type fields only, in `apply/prefill.ts`'s `draftAnswer()`. Free-text fields (no
+  fixed `values`) stay on the existing `LlmClient` completion path — no typed primitive covers
+  open-ended generation. CV interpretation, feed ranking, and per-job evaluation are explicitly
+  **out of scope** for this contract; any future use of `Score`/`Noul` there is its own decision,
+  not an implicit extension of this one. Sensitive-question classification is unaffected either
+  way — that gate is pure regex (`apply/sensitive.ts`) and never reaches an LLM call, before or
+  after this change.
+- **Fallback behavior**: if the structured-output call errors or times out, the field fails closed
+  to `pending_needs_answer` — no silent fallback to the free-text `draftAnswer()` path for that
+  field. Consistent with this project's fail-closed posture elsewhere (JobsDB HK, ATS submission).
+- **Confidence threshold**: **70%, explicitly provisional** — a starting default for the pilot, not
+  a calibrated number. There is no existing confidence-threshold precedent anywhere in this
+  codebase to anchor to (CV interpretation has none either). Revisit once real pilot confidence/
+  outcome data exists.
+- **Client interface shape**: a new, separate `ChoiceClient` interface, injected only into
+  `prefill.ts` — not bolted onto `LlmClient` (`llm/client.ts`), which is also used by
+  `handoff.ts` and `cv/interpret.ts` for plain text completion and has no reason to carry a typed
+  choice-decision capability those callers don't use.
+- **Data-handling review**: not required beyond what already covers `LlmClient` today
+  (`compliance/privacy-policy-requirements.md` §5) — since no new vendor and no new data
+  destination is introduced, this sidesteps the offshore-processor review the original Jev
+  proposal would have needed.
+- **Cost/latency bar**: qualitative reasoning ("purpose-built structured-output path, same
+  provider already in use") is sufficient to ship this as a pilot; real numbers become an exit
+  condition before considering anything beyond the current scope.
+- **Considered and set aside**: TypeSafe's actual hosted Jev API — technically the more
+  "authentic" version of the typed-decision idea, but requires (1) a second offshore-processor
+  review under §5, (2) joining TypeSafe's early-access waitlist, an acceptance timeline outside
+  Fyndra's control, working against a fast go-to-market posture. Apple's iOS 27 Foundation Models
+  framework (`@Generable` guided generation, on-device and Private Cloud Compute) — functionally
+  covers the same typed-decision need, with an even stronger privacy story (on-device: no network
+  call at all), but requires the client (not the API/worker) to own this logic, conflicting with
+  §6's "iOS client — presentation only" invariant, and effectively gates the feature behind iOS 27
+  against this project's iOS 17+ target, days after iOS 27's launch. **Noted as a real future
+  direction, not part of this decision** — revisit once iOS 27 adoption is meaningful and the
+  client/server logic-boundary question gets its own explicit decision.
+- **Sources**: [TypeSafe AI's Jev: What "System One Models" Actually Are](https://www.truefoundry.com/blog/typesafe-ai-jev);
+  [TypeSafe AI Releases Jev — MarkTechPost](https://www.marktechpost.com/2026/09/19/typesafe-ai-releases-jev/);
+  [system-one-adapter-python discussion](https://github.com/FindMalek/guesswork/issues/1);
+  [Apple Foundation Models / Private Cloud Compute, iOS 27](https://developer.apple.com/private-cloud-compute/).
+
 ## Traditional Chinese support
 
 - **Decision**: CJK segmentation before any keyword operation, plus a curated **bilingual skill

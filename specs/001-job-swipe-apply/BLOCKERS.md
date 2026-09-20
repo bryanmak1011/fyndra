@@ -6,6 +6,61 @@ question for you.
 
 ---
 
+## 2026-09-21 — RESOLVED (pre-board): Choice/Score/Noul contract for prefill answer drafting (T093) — sharpened for Architecture Board review
+
+**Status**: Sharpened ahead of today's Architecture Board review, not yet implemented;
+`apply/prefill.ts` (T065) is unchanged. Originally proposed 2026-09-20 as "adopt Typesafe AI's Jev
+as a second model provider" — that specific proposal is dropped; the underlying idea (typed
+`Choice`/`Score`/`Noul` decisions instead of free text for choice-field drafting) survives in a
+different form.
+
+**What changed**: Jev turned out to be hosted-only, early-access-waitlist, no self-host/on-prem
+option (verified against TypeSafe's own material, sources in `research.md`) — the opposite of what
+was assumed when this was first proposed. Decision: skip TypeSafe's hosted API entirely and
+reimplement the same `Choice`/`Score`/`Noul` request contract in TypeScript against Fyndra's
+*existing*, already-privacy-reviewed `LlmClient` provider — the same pattern TypeSafe's own
+official `system-one-adapter-python` uses. This resolves all three of the original open items at
+once: no new vendor means no new data-handling/DPA review; no waitlist means no external timeline
+dependency; the client-shape question is answered with a new `ChoiceClient` interface, scoped to
+`prefill.ts` only. Confidence threshold: 70%, explicitly provisional, to be revised from pilot
+data. On error, fails closed to `pending_needs_answer`. Scope is explicit: prefill choice-fields
+only, not CV interpretation, ranking, or per-job evaluation. Full writeup: `research.md`'s
+"Structured answer drafting: the Choice/Score/Noul contract" entry and `SDD.md` §6.7.
+
+Apple's iOS 27 Foundation Models framework (`@Generable`, on-device + Private Cloud Compute) was
+also considered — functionally similar, stronger on-device privacy story, but conflicts with the
+"iOS client — presentation only" architecture invariant and the iOS 17+ target. Logged as a future
+direction in `research.md`, not part of this decision.
+
+**For the Board**: this is a sharpened proposal, not a request to approve a new vendor — there is
+no new vendor. Flagging for awareness and to confirm the scope/threshold/fallback choices above
+before implementation starts.
+
+---
+
+## 2026-09-21 — CUA added as a second browser-automation tool, same scope as the existing personal-test path
+
+**Status**: Not a new blocker — an explicit scope confirmation on top of the existing 2026-09-10
+`risk-acceptance-log.md` entry ("Browser-automated submission via JobsDB HK's / 104.com.tw's own
+native apply flow"). No code changed.
+
+Product asked about using [cua](https://github.com/trycua/cua) (isolated-desktop/container
+computer-use agent tooling) alongside Playwright-stealth for browser-automated submission. Cua
+itself is general-purpose desktop-automation tooling with no documented bot-detection-evasion
+framing. Confirmed scope, matching the existing entry rather than expanding it:
+
+- **Target**: JobsDB HK's and 104.com.tw's own native apply flow only — not third-party ATS
+  platforms (Greenhouse etc.). Fyndra's sourcing still pulls zero ATS-hosted postings
+  (2026-09-10 sourcing pivot), so there is nothing for an ATS-style submitter to attach to.
+- **Rollout**: still personal-test-only, single-profile-gated (`browser-agent/gate.ts`) — general
+  rollout remains its own future decision, per the existing entry's own terms.
+- **Bot-wall posture unchanged**: CUA is a second *attempt method* alongside Playwright-stealth,
+  not an escalation triggered by stealth failing. A bot wall still hard-fails to `needs_attention`
+  — evasion stays an accepted risk within a single attempt, not a built default that tries harder
+  on failure. See `compliance/risk-acceptance-log.md`'s 2026-09-21 entry for the full record.
+
+---
+
 ## 2026-09-10 — RESOLVED: sourcing pivot to Apify closes out three entries below
 
 Per your direction ("drop other job sources... for JobsDB go with Apify (shahidirfan/Jobsdb-Scraper)

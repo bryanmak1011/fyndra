@@ -154,3 +154,39 @@ build never ships inside the iOS client (it's a laptop/server-side worker proces
 as a whole still carries Guideline 5.2.2/4.3 exposure once/if this ever becomes a general feature.
 README.md's "we never store your platform passwords" bullet needs a scoped caveat (session-state,
 not password custody; personal-test only) rather than standing as an now-inaccurate blanket claim.
+
+---
+
+## 2026-09-21 — CUA added as a second tool within this same accepted scope
+
+**Finding overridden**: none new — this confirms the boundaries of the 2026-09-10 entry above
+rather than overriding a fresh finding. Recorded because product raised
+[cua](https://github.com/trycua/cua) by name and the scope needed an explicit yes/no rather than
+being inferred.
+
+**Decision**: [cua](https://github.com/trycua/cua) (isolated-desktop/container computer-use agent
+tooling — Fleets/cloud sandboxes, Lume/local VMs, native desktop and browser control; no
+documented bot-detection-evasion framing in the project itself) may be used as a second automation
+tool alongside Playwright-stealth, within the *exact same scope* as the 2026-09-10 entry — not a
+new or wider risk acceptance:
+
+- **Target unchanged**: JobsDB HK's / 104.com.tw's own native apply flow only. Not extended to
+  third-party ATS platforms — current sourcing (2026-09-10 Apify pivot) pulls no ATS-hosted
+  postings, so there is nothing for an ATS-style submitter to attach to. Any future move back
+  toward ATS-hosted sourcing, or toward driving ATS submission forms, needs its own decision.
+- **Rollout unchanged**: personal-test-only, single-profile-gated (`browser-agent/gate.ts`).
+  General/multi-user rollout is still explicitly out of scope, same as the entry above states.
+- **Bot-wall posture unchanged, explicitly not escalated**: the 2026-09-10 entry's stance —
+  *"evasion is permitted as an accepted risk, not built as an assumed default"* — holds. CUA is
+  a second **attempt method**, tried on its own terms, not a fallback triggered specifically by
+  Playwright-stealth failing. A bot wall is still a hard failure into `needs_attention`, regardless
+  of which tool hit it. Building an automatic escalate-to-a-stronger-tool-on-failure path would be
+  a materially different, wider decision than this one — not made here.
+- **Does NOT cover**: guessed DOM/selectors or interaction flows for either tool, same constitution
+  Principle VI constraint as the entry above — any concrete cua-based flow still needs a live,
+  hands-on verification pass before it can act.
+
+**Consequence for engineering**: none yet — no code changes; `browser-agent/` still only has the
+Playwright-based JobsDB HK path (104.com.tw stub, per the entry above). A CUA-based attempt path,
+if and when implemented, sits alongside the existing Playwright-stealth attempt under the same
+`browser_automated` route and `SubmissionAttempt` audit trail, not a new route.

@@ -88,6 +88,7 @@ graph TB
         TW["104 / 1111 / Cake<br/>Taiwan boards"]
         ATSF["Greenhouse · Lever<br/>Ashby · Workable"]
         LLM["LLM API<br/>(Gemini / OpenAI-compat)"]
+        JEV["Typesafe Jev<br/><i>proposed — choice-field<br/>answer drafting only</i>"]
         FC["Firecrawl<br/>(JS-gated pages only)"]
         APNS["APNs"]
     end
@@ -101,12 +102,14 @@ graph TB
     API -->|scrape| TW
     API -->|"submit (allowlist only)"| ATSF
     API --> LLM
+    API -.->|"proposed, §6.7"| JEV
     API --> FC
     API --> APNS
     APNS -.->|push| IOS
     CO -.->|"endpoints, doctrine,<br/>status vocab, carve-out"| API
 
     style CO stroke-dasharray: 5 5
+    style JEV stroke-dasharray: 5 5
 ```
 
 **Trust boundaries**: the iOS app is untrusted — all authorisation is server-side. Every external
@@ -353,6 +356,32 @@ such a call.
   synchronous request path.
 - Everything else stays deterministic: sourcing, de-duplication, keyword overlap, ranking at feed
   scale, status bookkeeping. A model is never in the path of showing a card.
+
+**Decided 2026-09-21, ahead of Architecture Board review — in-house Choice/Score/Noul contract for
+choice-field answer drafting.** Not yet implemented. `apply/prefill.ts`'s `draftAnswer()` currently
+drafts *every* question — free text and fixed-option alike — through the generic
+OpenAI-compatible `LlmClient.complete(prompt)`, asking choice-type questions to "answer with
+EXACTLY one of these labels" and string-matching the result. The original proposal (2026-09-20)
+was to route fixed-`values` (dropdown/multiple-choice) fields through Typesafe AI's **Jev** model.
+Jev turned out to be hosted-only with no self-host option (early-access waitlist, no published
+weights) — see `research.md`. Decision instead: reimplement the same typed `Choice` contract
+(`{choice, probabilities, confidence}`, against a list of options, in one request) in TypeScript,
+against the *existing* `LlmClient` provider — no new vendor, no new data destination. Delivered via
+a new **`ChoiceClient`** interface (`api/src/llm/`), injected only into `prefill.ts` — not added to
+`LlmClient` itself, which `handoff.ts` and `cv/interpret.ts` also use for plain completions they
+don't need typed-choice capability for. Rationale unchanged: **structured** (no prompt-engineered
+exact-label matching or `"UNKNOWN"` sentinel to parse), **reliable** (typed contract, real
+confidence score — 70%, explicitly provisional pending pilot data — to threshold
+`pending_needs_answer` on instead of "got text or didn't"). On error/timeout, fails closed to
+`pending_needs_answer` rather than silently falling back to the free-text path. Free-text fields
+keep using `LlmClient` unchanged. Sensitive-question gating (`apply/sensitive.ts`) is unaffected:
+it's pure regex and runs before any LLM call either way. Scope is explicitly limited to prefill
+choice-fields — CV interpretation, feed ranking, and per-job evaluation are out of bounds without
+their own decision. Apple's iOS 27 Foundation Models framework covers similar ground with an even
+stronger on-device privacy story, but conflicts with this section's "iOS client — presentation
+only" invariant and this project's iOS 17+ target; noted in `research.md` as a future direction,
+not part of this decision. Full rationale, sources, and the alternatives considered in `research.md`'s
+"Structured answer drafting: the Choice/Score/Noul contract" entry.
 
 ### 6.8 Notifications
 
