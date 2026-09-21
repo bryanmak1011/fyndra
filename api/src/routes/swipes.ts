@@ -11,22 +11,33 @@ export const swipesRouter = Router();
 const paramsSchema = z.object({ jobId: z.string().uuid() });
 const bodySchema = z.object({ direction: z.enum(['left', 'right']) });
 
-function serializeApplication(app: {
-  id: string;
-  jobInteractionId: string;
-  submissionMode: string;
-  applyRoute: string;
-  status: string;
-  failureReason: string | null;
-  employerApplyUrl: string | null;
-  submittedAt: Date | null;
-}) {
+// Job identity is carried here too (see routes/applications.ts's
+// serializeJobIdentity) so a right-swipe's response is a complete tracking
+// row on its own — the client appends it to the list without a refetch.
+function serializeApplication(
+  app: {
+    id: string;
+    jobInteractionId: string;
+    submissionMode: string;
+    applyRoute: string;
+    status: string;
+    failureReason: string | null;
+    lastAttemptRef: string | null;
+    employerApplyUrl: string | null;
+    submittedAt: Date | null;
+  },
+  job: { id: string; title: string; employer: string },
+) {
   return {
     id: app.id,
+    jobPostingId: job.id,
+    jobTitle: job.title,
+    employer: job.employer,
     submissionMode: app.submissionMode,
     applyRoute: app.applyRoute,
     status: app.status,
     failureReason: app.failureReason,
+    lastAttemptRef: app.lastAttemptRef,
     employerApplyUrl: app.employerApplyUrl,
     submittedAt: app.submittedAt?.toISOString() ?? null,
     answerSheet: [],
@@ -68,7 +79,7 @@ swipesRouter.post('/:jobId/swipe', async (req, res, next) => {
     res.status(202).json({
       interactionId: interaction.id,
       direction: interaction.direction,
-      application: interaction.application ? serializeApplication(interaction.application) : null,
+      application: interaction.application ? serializeApplication(interaction.application, posting) : null,
     });
     return;
   }
@@ -100,6 +111,6 @@ swipesRouter.post('/:jobId/swipe', async (req, res, next) => {
   res.status(202).json({
     interactionId: interaction.id,
     direction,
-    application: serializeApplication(application),
+    application: serializeApplication(application, posting),
   });
 });

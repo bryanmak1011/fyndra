@@ -38,19 +38,10 @@ applicationsRouter.get('/', async (req, res, next) => {
       ...(statusFilter && { status: { in: statusFilter as never[] } }),
     },
     orderBy: { createdAt: 'desc' },
+    include: { jobInteraction: { include: { jobPosting: true } } },
   });
 
-  res.status(200).json(
-    applications.map((a) => ({
-      id: a.id,
-      submissionMode: a.submissionMode,
-      applyRoute: a.applyRoute,
-      status: a.status,
-      failureReason: a.failureReason,
-      employerApplyUrl: a.employerApplyUrl,
-      submittedAt: a.submittedAt?.toISOString() ?? null,
-    })),
-  );
+  res.status(200).json(applications.map(serializeApplicationRow));
 });
 
 // GET /applications/{id} (T077) — includes status history.
@@ -104,8 +95,54 @@ applicationsRouter.post('/:id/status', validateBody(statusUpdateSchema), async (
   res.status(200).json(await serializeApplication(application.id));
 });
 
+/**
+ * The job-identity half of an Application response. Without it a tracking
+ * row can only say "handed_off" and not *what* was handed off, which is the
+ * whole point of FR-011. `jobPostingId` is in contracts/openapi.yaml and was
+ * simply never emitted; `jobTitle`/`employer` are an addition to that
+ * contract, made so the list screen needs one request rather than one per row
+ * (there is no GET /jobs/{id} to resolve them with).
+ */
+function serializeJobIdentity(interaction: {
+  jobPostingId: string;
+  jobPosting: { title: string; employer: string };
+}) {
+  return {
+    jobPostingId: interaction.jobPostingId,
+    jobTitle: interaction.jobPosting.title,
+    employer: interaction.jobPosting.employer,
+  };
+}
+
+function serializeApplicationRow(application: {
+  id: string;
+  submissionMode: string;
+  applyRoute: string;
+  status: string;
+  failureReason: string | null;
+  lastAttemptRef: string | null;
+  employerApplyUrl: string | null;
+  submittedAt: Date | null;
+  jobInteraction: { jobPostingId: string; jobPosting: { title: string; employer: string } };
+}) {
+  return {
+    id: application.id,
+    ...serializeJobIdentity(application.jobInteraction),
+    submissionMode: application.submissionMode,
+    applyRoute: application.applyRoute,
+    status: application.status,
+    failureReason: application.failureReason,
+    lastAttemptRef: application.lastAttemptRef,
+    employerApplyUrl: application.employerApplyUrl,
+    submittedAt: application.submittedAt?.toISOString() ?? null,
+  };
+}
+
 async function serializeApplication(applicationId: string) {
-  const application = await prisma.application.findUniqueOrThrow({ where: { id: applicationId } });
+  const application = await prisma.application.findUniqueOrThrow({
+    where: { id: applicationId },
+    include: { jobInteraction: { include: { jobPosting: true } } },
+  });
   const [answerSheet, pendingQuestions] = await Promise.all([
     prisma.proposedAnswer.findMany({ where: { applicationId } }),
     prisma.applicationQuestion.findMany({ where: { applicationId, answer: null } }),
@@ -113,10 +150,12 @@ async function serializeApplication(applicationId: string) {
 
   return {
     id: application.id,
+    ...serializeJobIdentity(application.jobInteraction),
     submissionMode: application.submissionMode,
     applyRoute: application.applyRoute,
     status: application.status,
     failureReason: application.failureReason,
+    lastAttemptRef: application.lastAttemptRef,
     employerApplyUrl: application.employerApplyUrl,
     submittedAt: application.submittedAt?.toISOString() ?? null,
     answerSheet: answerSheet.map((a) => ({

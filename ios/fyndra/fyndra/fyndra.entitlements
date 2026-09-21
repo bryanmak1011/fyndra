@@ -2,15 +2,12 @@
 <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
 <plist version="1.0">
 <dict>
+	<!--
+	  Push only. The Xcode wizard's CloudKit entries were removed: nothing in
+	  the app uses CloudKit, and an unused iCloud entitlement is a capability
+	  the App Store listing would have to justify (constitution V).
+	-->
 	<key>aps-environment</key>
 	<string>development</string>
-	<key>com.apple.developer.aps-environment</key>
-	<string>development</string>
-	<key>com.apple.developer.icloud-container-identifiers</key>
-	<array/>
-	<key>com.apple.developer.icloud-services</key>
-	<array>
-		<string>CloudKit</string>
-	</array>
 </dict>
 </plist>

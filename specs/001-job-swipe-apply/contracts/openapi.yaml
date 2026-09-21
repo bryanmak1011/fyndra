@@ -1,10 +1,19 @@
 openapi: 3.0.3
 info:
   title: Fyndra API
-  version: 0.3.0-phase1
+  version: 0.5.0-phase1
   description: >
     Contract between the iOS client and the local Node/Express/PostgreSQL server (Phase 1),
     for the Hong Kong and Taiwan markets.
+
+    Revision 0.5.0 gives POST /auth/request-code a JSON body. It is `{}` for every ordinary
+    account, and carries a `session` only for a non-production test account configured to skip
+    code verification — additive, and invisible to a client that ignores the body.
+
+    Revision 0.4.0 adds `jobTitle` and `employer` to Application (additive, no breaking change),
+    found while building the tracking screen: `jobPostingId` was specified but never emitted,
+    and with no GET /jobs/{id} endpoint the client had no way to turn an id into a job a person
+    could recognise.
 
     Revision 0.3.0: career-ops is a design reference only, so the status enum is ours —
     lower snake_case, with rev-2's `Evaluated`/`SKIP` dropped (they existed only to mirror into
@@ -52,7 +61,22 @@ paths:
               properties:
                 email: { type: string, format: email }
       responses:
-        '202': { description: Code sent (response is identical whether or not the account exists) }
+        '202':
+          description: >
+            Code sent. The response is identical whether or not the account exists, so this
+            endpoint cannot be used to enumerate accounts.
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  session:
+                    description: >
+                      Present ONLY for a non-production test account configured to skip
+                      one-time-code verification (the server's AUTH_BYPASS_EMAILS). Such a
+                      server refuses to boot with NODE_ENV=production. For every other
+                      account the body is `{}` and the client must go on to /auth/verify.
+                    allOf: [{ $ref: '#/components/schemas/AuthSession' }]
         '429':
           description: Too many requests
           content: { application/json: { schema: { $ref: '#/components/schemas/Error' } } }
@@ -328,6 +352,13 @@ components:
       scheme: bearer
 
   schemas:
+    AuthSession:
+      type: object
+      properties:
+        token: { type: string }
+        expiresAt: { type: string, format: date-time }
+        profile: { $ref: '#/components/schemas/UserProfile' }
+
     Market:
       type: string
       enum: [HK, TW]
@@ -431,6 +462,14 @@ components:
       properties:
         id: { type: string, format: uuid }
         jobPostingId: { type: string, format: uuid }
+        jobTitle:
+          type: string
+          description: >
+            Denormalised from the posting. There is no GET /jobs/{id}, so without this the
+            tracking list (FR-011) could name a status but not the job it belongs to.
+        employer:
+          type: string
+          description: Denormalised from the posting, for the same reason as jobTitle.
         submissionMode: { type: string, enum: [review_before_sending, auto_submit] }
         applyRoute: { type: string, enum: [direct_submit_allowlisted, handoff] }
         status: { $ref: '#/components/schemas/ApplicationStatus' }

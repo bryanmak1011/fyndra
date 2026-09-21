@@ -3,48 +3,96 @@
 Swift 6, SwiftUI, iOS 17+. See [../specs/001-job-swipe-apply/](../specs/001-job-swipe-apply/) for
 the full design.
 
-## What exists today
+## Layout
 
-- **`FyndraCore/`** — a standalone Swift Package with no SwiftUI/UIKit
-  dependency: the `APIClient` (URLSession, 30s/60s timeouts, exponential
-  backoff on 5xx, bearer-token injection) and the contract models. Builds
-  and tests with plain SwiftPM:
+| Path | What it is |
+|---|---|
+| `FyndraCore/` | Standalone Swift Package, no SwiftUI/UIKit: `APIClient`, the `FyndraAPI` protocol, and every contract model. Builds and tests with plain `swift test`. |
+| `fyndra/fyndra.xcodeproj` | The app project. Uses Xcode's file-system-synchronized groups, so **a new file under `fyndra/fyndra/` is in the build automatically** — no project edit needed. |
+| `fyndra/fyndra/App/` | Session, Keychain token storage, root tab shell, push registration, and the UI-test stub backend. |
+| `fyndra/fyndra/Core/` | Design tokens, load/error-state plumbing, and the `en` + `zh-Hant` String Catalog. |
+| `fyndra/fyndra/Features/` | `Auth`, `Profile`, `JobFeed`, `ApplicationTracking`, `Settings`. |
+| `fyndra/fyndraTests/` | View-model unit tests plus `Snapshot/` layout-regression tests. |
+| `fyndra/fyndraUITests/` | `SwipeFeedUITests` (stubbed, always runs) and `DemoWalkthroughUITests` (live, opt-in). |
 
-  ```bash
-  cd FyndraCore
-  swift build   # verified — compiles clean on Swift 6.3
-  swift test    # NOT runnable in a Command-Line-Tools-only environment —
-                 # see below. Runs fine in Xcode.
-  ```
+## Running the tests
 
-- **`Fyndra/`** — the app target's directory structure only
-  (`App/`, `Features/{Profile,JobFeed,ApplicationTracking,Settings}/`,
-  `Core/DesignSystem/`, `Resources/{en,zh-Hant}.lproj/`). No `.xcodeproj` and
-  no source files yet — see below.
+```bash
+export DEVELOPER_DIR=/Applications/Xcode.app/Contents/Developer
 
-## Known gap: no Xcode project, and why
+cd FyndraCore && swift test                      # 17 tests, no simulator needed
 
-This scaffold was built in an environment with **Xcode Command Line Tools
-only** (`xcodebuild` present but `xcode-select` reports no full Xcode.app,
-and `xcrun --sdk iphonesimulator` fails — there is no iOS SDK). Two concrete
-consequences:
+cd ../fyndra && xcodebuild test \
+  -project fyndra.xcodeproj -scheme fyndra \
+  -destination 'platform=iOS Simulator,name=iPhone 17' \
+  CODE_SIGNING_ALLOWED=NO                        # 37 tests
+```
 
-1. **No `.xcodeproj` was generated.** Hand-authoring a `.pbxproj` reliably
-   without Xcode is impractical and error-prone; a generator like XcodeGen
-   isn't installed either. **Action needed**: open Xcode, "File → New →
-   Project → App" (iOS, SwiftUI, Swift 6, name `Fyndra`, min deployment
-   iOS 17.0), save it into this `ios/Fyndra/` directory structure
-   (Xcode will offer to use the existing folder), then add
-   `FyndraCore` as a local Swift Package dependency (File → Add Package
-   Dependencies → Add Local... → select `../FyndraCore`).
-2. **`swift test` doesn't run here** — this toolchain has neither `XCTest`
-   nor the `Testing` (swift-testing) module available standalone; both
-   normally ship with Xcode.app. `swift build` still fully compiles and
-   type-checks the library target, which is a real signal, just not a
-   substitute for running the test target in `APIClientTests.swift` — do
-   that once the package is open in Xcode.
+`CODE_SIGNING_ALLOWED=NO` is only needed when building outside Xcode without
+a provisioning profile; from Xcode itself, just press ⌘U.
 
-Everything under `Features/`, `Core/DesignSystem/`, and `Resources/` is an
-empty directory, not stubbed source — see `tasks.md` T023 and the User
-Story phases (T036 onward) for what populates them, and why they weren't
-pre-filled with unused scaffolding now.
+### The two kinds of UI test
+
+`SwipeFeedUITests` runs the app against `StubAPI`, an in-memory `FyndraAPI`
+selected by the `-FyndraUITestStub` launch argument and compiled out of
+RELEASE. It needs nothing running, so it belongs in CI.
+
+`DemoWalkthroughUITests` is the real end-to-end pass — real server, real
+Postgres, real worker — and **skips itself** unless told otherwise:
+
+```bash
+# api/.env needs the test-account bypass enabled:
+#   AUTH_BYPASS_EMAILS=abc123@abcai.com
+
+# terminal 1 and 2
+cd ../api && npm run dev
+cd ../api && npm run worker
+
+# terminal 3 — give the test account a feed to swipe
+cd ../api && npm run seed:demo -- abc123@abcai.com
+
+# terminal 4
+cd fyndra && TEST_RUNNER_FYNDRA_LIVE_WALKTHROUGH=1 xcodebuild test \
+  -project fyndra.xcodeproj -scheme fyndra \
+  -destination 'platform=iOS Simulator,name=iPhone 17' \
+  -only-testing:fyndraUITests/DemoWalkthroughUITests \
+  CODE_SIGNING_ALLOWED=NO
+```
+
+It attaches a screenshot of every screen it visits; pull them out of the
+result bundle with
+`xcrun xcresulttool export attachments --path <...>.xcresult --output-path ./shots`.
+
+It signs in with the bypass account rather than a real one-time code so that
+it is **repeatable**. A code is single-use by design, so an earlier version of
+this test passed once and then failed on every rerun until someone re-seeded.
+The real request-code → verify round trip is covered against live Postgres by
+`api/tests/contract/auth.test.ts`, and the code-entry UI by
+`SignInViewModelTests`.
+
+To sign in by hand as an ordinary account instead, either read the code from
+the server's `auth_code_issued` log line (quickstart.md), or seed a known one:
+`npm run seed:demo -- someone@example.com --login-code 424242`.
+
+## Talking to the API
+
+`BaseURLProvider` picks the base URL by build configuration: DEBUG uses
+`http://localhost:3000/v1`, or `NGROK_BASE_URL` when that scheme environment
+variable is set (physical device). RELEASE deliberately has no endpoint —
+there is no cloud deployment in Phase 1 (SDD.md §11.3).
+
+## Known gaps
+
+- **Push notifications don't arrive.** `POST /devices` registration is real
+  and wired to the first right-swipe prompt (T082), but the server's send
+  path (T079) needs an Apple Developer push key the project does not have.
+  The badge on the Applications tab is the working fallback in the meantime.
+- **Snapshot tests are layout-regression tests, not pixel references.** They
+  render the real views and assert they grow with Dynamic Type rather than
+  clipping — see the file comment in `Snapshot/LayoutSnapshotTests.swift` for
+  why, and what adopting swift-snapshot-testing would add.
+- **SwiftLint has never been run** against `.swiftlint.yml`; it is not
+  installed locally. The `ios` CI job is its first real exercise.
+- **The project still lists macOS/visionOS in `SUPPORTED_PLATFORMS`**, left
+  over from Xcode's multiplatform template. It builds and runs correctly as
+  an iOS 17+ app; narrowing it is cosmetic cleanup.

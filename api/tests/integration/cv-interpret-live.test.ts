@@ -1,6 +1,7 @@
 import { config } from '../../src/config/index.js';
 import { createOpenAiCompatibleClient } from '../../src/llm/client.js';
 import { interpretCv } from '../../src/cv/interpret.js';
+import { skippingProviderCapacity } from '../helpers/live-llm.js';
 
 // Real network call against the configured LLM provider (OpenRouter,
 // nvidia/nemotron-3-nano-omni-30b-a3b-reasoning:free for dev — see
@@ -11,6 +12,7 @@ import { interpretCv } from '../../src/cv/interpret.js';
 // (not a bare `jest` invocation) — see scripts/preload-env.mjs for why.
 const hasLiveKey = Boolean(config.openaiApiKey && config.openaiBaseUrl && config.llmModel);
 const maybeIt = hasLiveKey ? it : it.skip;
+
 
 const EN_CV = `
 Jane Doe
@@ -39,38 +41,42 @@ describe('interpretCv — live LLM integration', () => {
   maybeIt(
     'extracts real keywords and YoE from an English CV via the configured model',
     async () => {
-      const llm = createOpenAiCompatibleClient({
-        apiKey: config.openaiApiKey,
-        baseUrl: config.openaiBaseUrl,
-        model: config.llmModel,
+      await skippingProviderCapacity(async () => {
+        const llm = createOpenAiCompatibleClient({
+          apiKey: config.openaiApiKey,
+          baseUrl: config.openaiBaseUrl,
+          model: config.llmModel,
+        });
+
+        const result = await interpretCv(EN_CV, 'en', llm);
+
+        expect(result.keywords.length).toBeGreaterThan(0);
+        expect(result.yoe).toBe(5); // regex extractor should win regardless of model output
+        const lower = result.keywords.map((k) => k.toLowerCase());
+        expect(lower.some((k) => k.includes('typescript') || k.includes('postgres') || k.includes('go'))).toBe(
+          true,
+        );
       });
-
-      const result = await interpretCv(EN_CV, 'en', llm);
-
-      expect(result.keywords.length).toBeGreaterThan(0);
-      expect(result.yoe).toBe(5); // regex extractor should win regardless of model output
-      const lower = result.keywords.map((k) => k.toLowerCase());
-      expect(lower.some((k) => k.includes('typescript') || k.includes('postgres') || k.includes('go'))).toBe(
-        true,
-      );
     },
-    90_000, // reasoning model — chain-of-thought before the answer
+    240_000, // reasoning model, plus client.ts's retries when the free tier is at capacity
   );
 
   maybeIt(
     'extracts non-empty keywords from a real Traditional Chinese CV (SDD R5, end to end)',
     async () => {
-      const llm = createOpenAiCompatibleClient({
-        apiKey: config.openaiApiKey,
-        baseUrl: config.openaiBaseUrl,
-        model: config.llmModel,
+      await skippingProviderCapacity(async () => {
+        const llm = createOpenAiCompatibleClient({
+          apiKey: config.openaiApiKey,
+          baseUrl: config.openaiBaseUrl,
+          model: config.llmModel,
+        });
+
+        const result = await interpretCv(ZH_HANT_CV, 'zh_Hant', llm);
+
+        expect(result.keywords.length).toBeGreaterThan(0);
+        expect(result.yoe).toBe(5);
       });
-
-      const result = await interpretCv(ZH_HANT_CV, 'zh_Hant', llm);
-
-      expect(result.keywords.length).toBeGreaterThan(0);
-      expect(result.yoe).toBe(5);
     },
-    90_000,
+    240_000,
   );
 });

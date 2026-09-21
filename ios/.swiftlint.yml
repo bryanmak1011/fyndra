@@ -1,0 +1,52 @@
+# T011's Swift half. The ceiling that matters is the constitution's
+# cyclomatic-complexity limit of 10, matching `complexity: ['error', 10]`
+# in api/eslint.config.js — the same rule on both sides of the product.
+#
+# Not yet run in anger: SwiftLint is not installed in the development
+# environment this was authored in, so this config is exercised for the
+# first time by the `ios` CI job (.github/workflows/ci.yml). Treat the
+# first CI run as its verification.
+included:
+  - fyndra/fyndra
+  - FyndraCore/Sources
+  - fyndra/fyndraTests
+  - fyndra/fyndraUITests
+
+excluded:
+  - FyndraCore/.build
+
+cyclomatic_complexity:
+  warning: 10
+  error: 10
+
+# SwiftUI view bodies are legitimately long and legitimately nested; the
+# limits below are relaxed for them rather than suppressed everywhere.
+type_body_length:
+  warning: 400
+  error: 600
+
+file_length:
+  warning: 500
+  error: 800
+
+line_length:
+  warning: 140
+  error: 200
+  ignores_comments: true
+
+identifier_name:
+  excluded: [id, x, n]
+
+disabled_rules:
+  # Views read better with trailing-closure-heavy call chains than the
+  # rule's preferred form.
+  - multiple_closures_with_trailing_closure
+  - todo
+
+opt_in_rules:
+  - empty_count
+  - force_unwrapping
+  - explicit_init
+
+force_unwrapping:
+  severity: warning

@@ -32,6 +32,47 @@ npx tsc --noEmit
 code → verify → bearer-authenticated request) against a live Postgres
 connection — no mocked database.
 
+Every test file shares one database, so each one cleans up behind a **prefix
+unique to that file** (`test-auth-`, `test-profile-`, `test-tracking-`, …)
+and no test asserts on a global row count — Jest runs files in parallel, and
+both rules exist because breaking either produced real intermittent failures.
+
+### Test accounts that skip the one-time code
+
+`AUTH_BYPASS_EMAILS` is a comma-separated list of addresses that sign in
+without a code: `POST /auth/request-code` returns their session immediately,
+in a `session` field, and the client goes straight to the feed.
+
+This is an authentication bypass, so it is built to be unshippable rather
+than merely switched off:
+
+- it lives in the environment, never in source, so no address is baked into
+  a build artifact;
+- **the server refuses to boot** if it is set while `NODE_ENV=production`.
+  Deliberately not "ignored in production" — a silent no-op leaves the
+  variable sitting in a production environment looking harmless until
+  somebody relaxes the check;
+- it is empty unless explicitly set, so every environment defaults to no
+  bypass;
+- a bypass sign-in logs `auth_code_bypassed` at warn level;
+- the 202 response shape is unchanged for everyone else (`{}`), so the
+  endpoint still cannot be used to enumerate accounts.
+
+`tests/unit/auth-bypass-config.test.ts` and `tests/contract/auth-bypass.test.ts`
+hold all of that in place, including that near-miss addresses
+(`xabc123@abcai.com`, `abc123@abcai.com.evil.test`) get nothing.
+
+### Seeding a demo account
+
+```bash
+npm run seed:demo -- demo@fyndra.test                      # 10 HK/TW postings, ranked
+npm run seed:demo -- demo@fyndra.test --login-code 424242  # …plus a known login code
+```
+
+Replaces (not appends to) anything tagged `sourceProvider: 'demo-seed'`, so
+re-running is idempotent. This is what makes the iOS simulator walkthrough
+possible without spending a paid Apify actor run per demo.
+
 ## What exists today
 
 All four user stories are implemented and tested end-to-end against a real
@@ -66,6 +107,19 @@ Postgres database (and, where relevant, real external services — see below):
   practice — left in place rather than deleted, since it's still correct
   and would apply again if an ATS source were reintroduced. See
   BLOCKERS.md's T067 entry for the fuller history.
+
+Every `Application` response also carries `jobPostingId`, `jobTitle` and
+`employer` (contract 0.4.0). The first was specified but never emitted; the
+other two are an additive change made while building the tracking screen —
+there is no `GET /jobs/{id}`, so without them the client could show a status
+but not the job it belonged to.
+
+The LLM client retries transient provider failures (HTTP 429/5xx, and the
+HTTP-200-with-`ResourceExhausted`-payload shape OpenRouter's free tier
+returns under load) with exponential backoff, and deliberately does not retry
+a 4xx. This is production-correct — a user's CV parse should not fail because
+the provider was briefly at capacity — and it also removed the recurring
+free-tier flake that had been failing two integration tests per full run.
 
 Not yet done: APNs push (T079, needs real Apple Developer credentials),
 Firecrawl integration for JS-gated sources (T087).

@@ -55,9 +55,31 @@ public struct UserProfile: Codable, Sendable, Equatable {
     }
 }
 
+/// The body `POST /auth/request-code` returns.
+///
+/// `session` is present only for an account the server has been configured
+/// to let skip one-time-code verification — a non-production test account
+/// (see the API's `AUTH_BYPASS_EMAILS`). For everyone else this decodes as
+/// an empty object, and the client must go on to the code step. Optional
+/// rather than a separate endpoint so an ordinary caller cannot tell the
+/// two cases apart by anything other than the absence of a session.
+public struct LoginCodeResponse: Codable, Sendable, Equatable {
+    public let session: AuthResponse?
+
+    public init(session: AuthResponse? = nil) {
+        self.session = session
+    }
+}
+
 /// The body `POST /auth/verify` returns.
 public struct AuthResponse: Codable, Sendable, Equatable {
     public let token: String
     public let expiresAt: Date
     public let profile: UserProfile
+
+    public init(token: String, expiresAt: Date, profile: UserProfile) {
+        self.token = token
+        self.expiresAt = expiresAt
+        self.profile = profile
+    }
 }

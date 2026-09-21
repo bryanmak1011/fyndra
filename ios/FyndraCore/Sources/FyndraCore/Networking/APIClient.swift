@@ -6,13 +6,26 @@ import Foundation
 public struct APIRequest<Response: Decodable & Sendable>: Sendable {
     public let path: String
     public let method: String
+    public let query: [URLQueryItem]
     public let body: Data?
+    /// Defaults to JSON when a body is present; the CV upload overrides it
+    /// with its multipart boundary.
+    public let contentType: String?
     public let requiresAuth: Bool
 
-    public init(path: String, method: String = "GET", body: Data? = nil, requiresAuth: Bool = true) {
+    public init(
+        path: String,
+        method: String = "GET",
+        query: [URLQueryItem] = [],
+        body: Data? = nil,
+        contentType: String? = nil,
+        requiresAuth: Bool = true
+    ) {
         self.path = path
         self.method = method
+        self.query = query
         self.body = body
+        self.contentType = contentType
         self.requiresAuth = requiresAuth
     }
 }
@@ -59,12 +72,18 @@ public actor APIClient {
         self.encoder.dateEncodingStrategy = .iso8601
     }
 
+    /// Replaces the token for the lifetime of this client — used when the
+    /// user signs in or out without the app rebuilding its object graph.
+    public func setBearerToken(_ token: String?) {
+        bearerToken = token
+    }
+
     public func send<Response>(_ request: APIRequest<Response>) async throws -> Response {
-        var urlRequest = URLRequest(url: baseURL.appendingPathComponent(request.path))
+        var urlRequest = URLRequest(url: url(for: request))
         urlRequest.httpMethod = request.method
         urlRequest.httpBody = request.body
         if request.body != nil {
-            urlRequest.setValue("application/json", forHTTPHeaderField: "Content-Type")
+            urlRequest.setValue(request.contentType ?? "application/json", forHTTPHeaderField: "Content-Type")
         }
         if request.requiresAuth, let bearerToken {
             urlRequest.setValue("Bearer \(bearerToken)", forHTTPHeaderField: "Authorization")
@@ -95,6 +114,15 @@ public actor APIClient {
         } catch {
             throw APIClientError.decodingFailed(String(describing: error))
         }
+    }
+
+    private func url<Response>(for request: APIRequest<Response>) -> URL {
+        let base = baseURL.appendingPathComponent(request.path)
+        guard !request.query.isEmpty,
+              var components = URLComponents(url: base, resolvingAgainstBaseURL: false)
+        else { return base }
+        components.queryItems = request.query
+        return components.url ?? base
     }
 
     private func sendWithRetry(_ request: URLRequest, attempt: Int) async throws -> (Data, URLResponse) {

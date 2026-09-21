@@ -17,6 +17,7 @@ const { createApp } = await import('../../src/app.js');
 const { prisma } = await import('../../src/lib/prisma.js');
 const { config } = await import('../../src/config/index.js');
 const { handleParseCv } = await import('../../src/queue/parse-cv.js');
+const { skippingProviderCapacity } = await import('../helpers/live-llm.js');
 
 const app = createApp();
 
@@ -60,31 +61,35 @@ describe('Full CV intake journey — upload through worker processing to profile
       });
       expect(queuedJob).not.toBeNull();
 
-      // 2. Run the worker's handler directly (real code path, no polling
-      // loop needed in a test — startWorkerLoop is just a setInterval
-      // wrapper around the same claim-and-run logic exercised elsewhere).
-      await handleParseCv(queuedJob!.payload);
+      await skippingProviderCapacity(async () => {
+        // 2. Run the worker's handler directly (real code path, no polling
+        // loop needed in a test — startWorkerLoop is just a setInterval
+        // wrapper around the same claim-and-run logic exercised elsewhere).
+        // It re-throws on failure, so a provider-capacity error reaches the
+        // wrapper rather than showing up as a confusing `parseStatus` diff.
+        await handleParseCv(queuedJob!.payload);
 
-      // 3. The raw extraction is available for review (FR-003) — not yet
-      // applied to the profile.
-      const cvRes = await request(app).get('/v1/profile/cv').set('Authorization', `Bearer ${token}`);
-      expect(cvRes.body.parseStatus).toBe('succeeded');
-      expect(cvRes.body.rawExtractedKeywords.length).toBeGreaterThan(0);
-      expect(cvRes.body.rawExtractedYoe).toBe(5);
+        // 3. The raw extraction is available for review (FR-003) — not yet
+        // applied to the profile.
+        const cvRes = await request(app).get('/v1/profile/cv').set('Authorization', `Bearer ${token}`);
+        expect(cvRes.body.parseStatus).toBe('succeeded');
+        expect(cvRes.body.rawExtractedKeywords.length).toBeGreaterThan(0);
+        expect(cvRes.body.rawExtractedYoe).toBe(5);
 
-      const profileBefore = await request(app).get('/v1/profile').set('Authorization', `Bearer ${token}`);
-      expect(profileBefore.body.keywords).toEqual([]); // never applied silently
+        const profileBefore = await request(app).get('/v1/profile').set('Authorization', `Bearer ${token}`);
+        expect(profileBefore.body.keywords).toEqual([]); // never applied silently
 
-      // 4. User confirms (possibly edited) values via PATCH.
-      const confirmRes = await request(app)
-        .patch('/v1/profile')
-        .set('Authorization', `Bearer ${token}`)
-        .send({ keywords: cvRes.body.rawExtractedKeywords, yoe: cvRes.body.rawExtractedYoe });
-      expect(confirmRes.status).toBe(200);
-      expect(confirmRes.body.yoe).toBe(5);
-      expect(confirmRes.body.keywords.length).toBeGreaterThan(0);
+        // 4. User confirms (possibly edited) values via PATCH.
+        const confirmRes = await request(app)
+          .patch('/v1/profile')
+          .set('Authorization', `Bearer ${token}`)
+          .send({ keywords: cvRes.body.rawExtractedKeywords, yoe: cvRes.body.rawExtractedYoe });
+        expect(confirmRes.status).toBe(200);
+        expect(confirmRes.body.yoe).toBe(5);
+        expect(confirmRes.body.keywords.length).toBeGreaterThan(0);
+      });
     },
-    90_000,
+    240_000, // live LLM step, plus client.ts's retries when the free tier is at capacity
   );
 
   it('marks parseStatus failed rather than leaving it stuck on "parsing" when the worker hits an error', async () => {

@@ -1,0 +1,114 @@
+# T013. A failing test blocks merge (constitution Principle II): every job
+# here is required, and none of them is allowed to continue-on-error.
+#
+# Honest status: this file has not been executed — there is no GitHub
+# remote configured for this repository yet, so nothing has run it. It is
+# written against the toolchain the project actually uses locally (Node 22,
+# Postgres 16, Xcode 26 / iOS 26 simulator) and the same commands that pass
+# locally. Expect the first real run to need version-pin adjustments.
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  api:
+    name: API — lint, types, tests, coverage gate
+    runs-on: ubuntu-latest
+
+    services:
+      postgres:
+        image: postgres:16
+        env:
+          POSTGRES_USER: fyndra
+          POSTGRES_PASSWORD: fyndra
+          POSTGRES_DB: fyndra_test
+        ports: ['5432:5432']
+        options: >-
+          --health-cmd pg_isready
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+
+    env:
+      DATABASE_URL: postgresql://fyndra:fyndra@localhost:5432/fyndra_test
+      NODE_ENV: test
+      # The CV-extraction and interpretation code needs these present to
+      # boot; the live-LLM integration tests skip themselves when the key
+      # is blank, so CI exercises everything else without a paid call.
+      CV_ENCRYPTION_KEY: 0000000000000000000000000000000000000000000000000000000000000000
+      CV_STORAGE_DIR: ./data/cv
+      AUTH_TOKEN_TTL_DAYS: '30'
+      LLM_PROVIDER: openai-compatible
+
+    defaults:
+      run:
+        working-directory: api
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: npm
+          cache-dependency-path: api/package-lock.json
+
+      # extract.ts shells out to pdftotext for the PDF text layer.
+      - name: Install pdftotext
+        run: sudo apt-get update && sudo apt-get install -y poppler-utils
+
+      - run: npm ci
+      - run: npx prisma generate
+      - run: npx prisma migrate deploy
+
+      - name: Lint
+        run: npm run lint
+
+      - name: Typecheck
+        run: npx tsc --noEmit -p tsconfig.json
+
+      # jest.config.js carries the 80/70/80/80 thresholds, so a coverage
+      # regression fails this step rather than merely reporting.
+      - name: Tests and coverage gate
+        run: npm run test:coverage-checked
+
+  ios:
+    name: iOS — build, unit, snapshot and UI tests
+    runs-on: macos-15
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Select Xcode
+        run: sudo xcode-select -s /Applications/Xcode_26.app
+
+      # FyndraCore is platform-agnostic and tests far faster on its own
+      # than through a simulator, so it gets its own step and fails early.
+      - name: FyndraCore tests
+        working-directory: ios/FyndraCore
+        run: swift test
+
+      - name: SwiftLint
+        working-directory: ios
+        run: |
+          brew install swiftlint
+          swiftlint lint --strict
+
+      - name: App tests (unit, layout snapshot, UI)
+        working-directory: ios/fyndra
+        run: |
+          xcodebuild test \
+            -project fyndra.xcodeproj \
+            -scheme fyndra \
+            -destination 'platform=iOS Simulator,name=iPhone 17' \
+            CODE_SIGNING_ALLOWED=NO
+        # DemoWalkthroughUITests skips itself here: it needs a live API,
+        # a worker and a seeded account, which the `api` job's services do
+        # not reach across runners. It is the local/manual validation step.

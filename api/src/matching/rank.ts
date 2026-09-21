@@ -38,8 +38,15 @@ export function computeMatchScore(profileKeywords: readonly string[], posting: R
     if (matched) score += titleTokens.has(token) ? 2 : 1;
   }
 
-  // Normalised so profiles/postings with more tokens aren't automatically
+  // Scaled so profiles/postings with more tokens aren't automatically
   // favoured — a Jaccard-like ratio against the smaller of the two sets.
+  //
+  // NOT bounded to 0..1, despite the ratio shape: a title token scores 2
+  // while the denominator counts it once, so a posting whose title matches
+  // the profile closely lands above 1.0. That is fine for ordering, which
+  // is all this value is for, but it means no caller may treat it as a
+  // percentage — the iOS client clamps it for display (JobPosting
+  // .matchPercentage) after a real feed rendered "120% match".
   const denominator = Math.max(1, Math.min(expandedProfile.size, postingTokens.size));
   return score / denominator;
 }
@@ -54,12 +61,31 @@ export async function rebuildFeedForProfile(profileId: string): Promise<number> 
   let written = 0;
   for (const posting of postings) {
     const matchScore = computeMatchScore(profile.keywords, posting);
-    await prisma.feedEntry.upsert({
-      where: { profileId_jobPostingId: { profileId, jobPostingId: posting.id } },
-      create: { profileId, jobPostingId: posting.id, matchScore },
-      update: { matchScore, rankedAt: new Date() },
-    });
-    written++;
+    try {
+      await prisma.feedEntry.upsert({
+        where: { profileId_jobPostingId: { profileId, jobPostingId: posting.id } },
+        create: { profileId, jobPostingId: posting.id, matchScore },
+        update: { matchScore, rankedAt: new Date() },
+      });
+      written++;
+    } catch (error) {
+      // The posting list is read before the writes, so a posting can be
+      // deleted underneath us mid-rebuild (retention sweep, a source going
+      // away, a concurrent test file tearing down its fixtures). A vanished
+      // posting simply has no feed entry — skip it rather than failing the
+      // whole rebuild, which would leave the profile's feed half-written.
+      if (isMissingPostingError(error)) continue;
+      throw error;
+    }
   }
   return written;
+}
+
+/** Prisma P2003 = foreign key constraint violated; here it can only be the posting. */
+function isMissingPostingError(error: unknown): boolean {
+  return (
+    typeof error === 'object' &&
+    error !== null &&
+    (error as { code?: string }).code === 'P2003'
+  );
 }

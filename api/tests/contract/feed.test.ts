@@ -117,6 +117,11 @@ describe('POST /v1/jobs/{jobId}/swipe', () => {
     expect(res.body.application).not.toBeNull();
     expect(res.body.application.status).toBe('queued');
     expect(res.body.application.applyRoute).toBe('direct_submit_allowlisted');
+    // The swipe response is a complete tracking row, so the client can show
+    // the new application without a refetch.
+    expect(res.body.application.jobPostingId).toBe(posting.id);
+    expect(res.body.application.jobTitle).toBe(posting.title);
+    expect(res.body.application.employer).toBe(posting.employer);
   });
 
   it('rejects an invalid direction', async () => {
