@@ -1,11 +1,13 @@
 # T013. A failing test blocks merge (constitution Principle II): every job
 # here is required, and none of them is allowed to continue-on-error.
 #
-# Honest status: this file has not been executed — there is no GitHub
-# remote configured for this repository yet, so nothing has run it. It is
-# written against the toolchain the project actually uses locally (Node 22,
-# Postgres 16, Xcode 26 / iOS 26 simulator) and the same commands that pass
-# locally. Expect the first real run to need version-pin adjustments.
+# Status: first run was PR #1 (2026-09-22). It found two environment
+# mistakes in this file, fixed below: an unquoted all-zero hex key that
+# YAML collapsed to the integer 0, and a missing
+# SESSION_STATE_ENCRYPTION_KEY. The iOS job's Xcode path was wrong too —
+# the runner image ships versioned bundles, not a bare Xcode_26.app.
+# SwiftLint --strict and the simulator test run have still never completed
+# a run; treat their first green as the real verification.
 name: CI
 
 on:
@@ -42,8 +44,16 @@ jobs:
       # The CV-extraction and interpretation code needs these present to
       # boot; the live-LLM integration tests skip themselves when the key
       # is blank, so CI exercises everything else without a paid call.
-      CV_ENCRYPTION_KEY: 0000000000000000000000000000000000000000000000000000000000000000
+      # Quoted deliberately: unquoted, YAML reads 64 zero digits as the
+      # integer 0, so the runner saw CV_ENCRYPTION_KEY="0" and every
+      # encrypt/decrypt path failed the 32-byte length check.
+      CV_ENCRYPTION_KEY: '0000000000000000000000000000000000000000000000000000000000000000'
       CV_STORAGE_DIR: ./data/cv
+      # browser-agent/session.ts uses its own key (a leaked session key
+      # exposes a live authenticated job-board session, not documents), so
+      # its tests need it present too.
+      SESSION_STATE_ENCRYPTION_KEY: '1111111111111111111111111111111111111111111111111111111111111111'
+      SESSION_STATE_STORAGE_DIR: ./data/session-state
       AUTH_TOKEN_TTL_DAYS: '30'
       LLM_PROVIDER: openai-compatible
 
@@ -86,8 +96,15 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
+      # The image carries Xcode 26 as versioned bundles (Xcode_26.3.app,
+      # Xcode_26.2.app, ...) — there is no bare Xcode_26.app, which is why
+      # the first run failed here. Take the newest 26.x present rather than
+      # pinning a point release the image will rotate out.
       - name: Select Xcode
-        run: sudo xcode-select -s /Applications/Xcode_26.app
+        run: |
+          xcode=$(ls -d /Applications/Xcode_26*.app | sort -V | tail -1)
+          sudo xcode-select -s "$xcode"
+          xcodebuild -version
 
       # FyndraCore is platform-agnostic and tests far faster on its own
       # than through a simulator, so it gets its own step and fails early.
