@@ -67,9 +67,11 @@ public actor APIClient {
         }
 
         self.decoder = JSONDecoder()
-        self.decoder.dateDecodingStrategy = .iso8601
+        // Not `.iso8601` — it rejects the fractional seconds the API
+        // actually sends. See ISO8601.swift.
+        self.decoder.dateDecodingStrategy = ISO8601.decoding
         self.encoder = JSONEncoder()
-        self.encoder.dateEncodingStrategy = .iso8601
+        self.encoder.dateEncodingStrategy = ISO8601.encoding
     }
 
     /// Replaces the token for the lifetime of this client — used when the
