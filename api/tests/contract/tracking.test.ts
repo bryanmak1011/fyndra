@@ -71,6 +71,22 @@ describe('GET /v1/applications', () => {
     expect(res.body).toHaveLength(1);
   });
 
+  it('names the job each application is for, not just its status (FR-011)', async () => {
+    const { token, profileId } = await authedProfile();
+    const application = await seedApplication(profileId, 'applied');
+    const interaction = await prisma.jobInteraction.findUniqueOrThrow({
+      where: { id: application.jobInteractionId },
+    });
+
+    const res = await request(app).get('/v1/applications').set('Authorization', `Bearer ${token}`);
+    expect(res.status).toBe(200);
+    expect(res.body[0]).toMatchObject({
+      jobPostingId: interaction.jobPostingId,
+      jobTitle: 'Backend Engineer',
+      employer: 'TestCo',
+    });
+  });
+
   it('filters by status', async () => {
     const { token, profileId } = await authedProfile();
     await seedApplication(profileId, 'applied');
@@ -108,6 +124,19 @@ describe('GET /v1/applications/{id}', () => {
     expect(res.status).toBe(200);
     expect(res.body.statusHistory).toHaveLength(1);
     expect(res.body.statusHistory[0].status).toBe('applied');
+  });
+
+  it('carries the same job identity as the list row', async () => {
+    const { token, profileId } = await authedProfile();
+    const application = await seedApplication(profileId, 'applied');
+
+    const res = await request(app)
+      .get(`/v1/applications/${application.id}`)
+      .set('Authorization', `Bearer ${token}`);
+    expect(res.status).toBe(200);
+    expect(res.body.jobTitle).toBe('Backend Engineer');
+    expect(res.body.employer).toBe('TestCo');
+    expect(res.body.jobPostingId).toEqual(expect.any(String));
   });
 });
 

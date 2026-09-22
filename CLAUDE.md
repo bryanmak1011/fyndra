@@ -11,9 +11,18 @@ supports it. In-app status tracking throughout.
 Two codebases:
 - **`api/`** — Node 22/TypeScript/Express/Prisma/PostgreSQL backend (API + worker).
   See [api/README.md](api/README.md) for what's implemented today.
-- **`ios/`** — Swift 6/SwiftUI, iOS 17+ client. No Xcode project exists yet (this
-  environment has Command Line Tools only, no Xcode.app) — see
-  [ios/README.md](ios/README.md).
+- **`ios/`** — Swift 6/SwiftUI, iOS 17+ client. Builds and runs in the
+  Simulator against the local API; all four user stories have screens. The
+  project is at `ios/fyndra/fyndra.xcodeproj` and uses file-system-
+  synchronized groups, so new files under `ios/fyndra/fyndra/` join the
+  build automatically. Shared networking and contract models live in the
+  `ios/FyndraCore` Swift package. See [ios/README.md](ios/README.md) —
+  including how to run the live end-to-end walkthrough.
+
+  Xcode is present but `xcode-select` points at the Command Line Tools, so
+  every `xcodebuild`/`xcrun` invocation needs
+  `DEVELOPER_DIR=/Applications/Xcode.app/Contents/Developer` (switching it
+  properly needs sudo).
 
 Full design lives in [specs/001-job-swipe-apply/](specs/001-job-swipe-apply/):
 `spec.md`, `plan.md`, `SDD.md`, `data-model.md`, `contracts/openapi.yaml`,

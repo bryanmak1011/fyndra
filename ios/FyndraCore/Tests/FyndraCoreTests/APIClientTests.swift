@@ -61,34 +61,75 @@ final class APIClientTests: XCTestCase {
     }
 
     func testRetriesOn5xxThenSucceeds() async throws {
-        var attempts = 0
+        let attempts = Counter()
         let okJSON = """
         {"id":"p1","email":"a@example.com","yoe":null,"keywords":[],
          "submissionMode":"review_before_sending","markets":[],
          "preferredLanguage":"en","dailySubmissionCap":10}
         """.data(using: .utf8)!
         StubURLProtocol.handler = { _ in
-            attempts += 1
-            return attempts < 3 ? (503, Data()) : (200, okJSON)
+            attempts.increment() < 3 ? (503, Data()) : (200, okJSON)
         }
 
         let client = makeClient()
         let profile: UserProfile = try await client.send(APIRequest(path: "profile", requiresAuth: false))
 
-        XCTAssertEqual(attempts, 3)
+        XCTAssertEqual(attempts.value, 3)
         XCTAssertEqual(profile.id, "p1")
     }
 
     func testAttachesBearerTokenWhenRequired() async throws {
-        var capturedAuthHeader: String?
+        let captured = Box<String>()
         StubURLProtocol.handler = { request in
-            capturedAuthHeader = request.value(forHTTPHeaderField: "Authorization")
+            captured.value = request.value(forHTTPHeaderField: "Authorization")
             return (204, Data())
         }
 
         let client = makeClient(token: "secret-token")
         let _: EmptyResponse = try await client.send(APIRequest(path: "devices", method: "POST"))
 
-        XCTAssertEqual(capturedAuthHeader, "Bearer secret-token")
+        XCTAssertEqual(captured.value, "Bearer secret-token")
+    }
+}
+
+/// URLProtocol handlers run on URLSession's own queue, so anything a test
+/// asserts on afterwards has to cross a concurrency domain. These two are
+/// the smallest safe way to do that under Swift 6's strict checking —
+/// capturing a plain `var` in the handler closure does not compile.
+final class Counter: @unchecked Sendable {
+    private let lock = NSLock()
+    private var count = 0
+
+    /// Returns the value *before* this call, matching `attempts += 1; use attempts`.
+    @discardableResult
+    func increment() -> Int {
+        lock.lock()
+        defer { lock.unlock() }
+        count += 1
+        return count
+    }
+
+    var value: Int {
+        lock.lock()
+        defer { lock.unlock() }
+        return count
+    }
+}
+
+final class Box<T>: @unchecked Sendable {
+    private let lock = NSLock()
+    private var stored: T?
+
+    var value: T? {
+        get {
+            lock.lock()
+            defer { lock.unlock() }
+            return stored
+        }
+        set {
+            lock.lock()
+            defer { lock.unlock() }
+            stored = newValue
+        }
     }
 }

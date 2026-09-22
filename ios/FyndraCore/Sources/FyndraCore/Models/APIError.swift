@@ -5,6 +5,11 @@ import Foundation
 public struct APIErrorBody: Codable, Sendable, Equatable {
     public let code: String
     public let message: String
+
+    public init(code: String, message: String) {
+        self.code = code
+        self.message = message
+    }
 }
 
 /// Errors the client itself can raise, distinct from a well-formed

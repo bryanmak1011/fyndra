@@ -1,0 +1,131 @@
+# T013. A failing test blocks merge (constitution Principle II): every job
+# here is required, and none of them is allowed to continue-on-error.
+#
+# Status: first run was PR #1 (2026-09-22). It found two environment
+# mistakes in this file, fixed below: an unquoted all-zero hex key that
+# YAML collapsed to the integer 0, and a missing
+# SESSION_STATE_ENCRYPTION_KEY. The iOS job's Xcode path was wrong too —
+# the runner image ships versioned bundles, not a bare Xcode_26.app.
+# SwiftLint --strict and the simulator test run have still never completed
+# a run; treat their first green as the real verification.
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  api:
+    name: API — lint, types, tests, coverage gate
+    runs-on: ubuntu-latest
+
+    services:
+      postgres:
+        image: postgres:16
+        env:
+          POSTGRES_USER: fyndra
+          POSTGRES_PASSWORD: fyndra
+          POSTGRES_DB: fyndra_test
+        ports: ['5432:5432']
+        options: >-
+          --health-cmd pg_isready
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+
+    env:
+      DATABASE_URL: postgresql://fyndra:fyndra@localhost:5432/fyndra_test
+      NODE_ENV: test
+      # The CV-extraction and interpretation code needs these present to
+      # boot; the live-LLM integration tests skip themselves when the key
+      # is blank, so CI exercises everything else without a paid call.
+      # Quoted deliberately: unquoted, YAML reads 64 zero digits as the
+      # integer 0, so the runner saw CV_ENCRYPTION_KEY="0" and every
+      # encrypt/decrypt path failed the 32-byte length check.
+      CV_ENCRYPTION_KEY: '0000000000000000000000000000000000000000000000000000000000000000'
+      CV_STORAGE_DIR: ./data/cv
+      # browser-agent/session.ts uses its own key (a leaked session key
+      # exposes a live authenticated job-board session, not documents), so
+      # its tests need it present too.
+      SESSION_STATE_ENCRYPTION_KEY: '1111111111111111111111111111111111111111111111111111111111111111'
+      SESSION_STATE_STORAGE_DIR: ./data/session-state
+      AUTH_TOKEN_TTL_DAYS: '30'
+      LLM_PROVIDER: openai-compatible
+
+    defaults:
+      run:
+        working-directory: api
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: npm
+          cache-dependency-path: api/package-lock.json
+
+      # extract.ts shells out to pdftotext for the PDF text layer.
+      - name: Install pdftotext
+        run: sudo apt-get update && sudo apt-get install -y poppler-utils
+
+      - run: npm ci
+      - run: npx prisma generate
+      - run: npx prisma migrate deploy
+
+      - name: Lint
+        run: npm run lint
+
+      - name: Typecheck
+        run: npx tsc --noEmit -p tsconfig.json
+
+      # jest.config.js carries the 80/70/80/80 thresholds, so a coverage
+      # regression fails this step rather than merely reporting.
+      - name: Tests and coverage gate
+        run: npm run test:coverage-checked
+
+  ios:
+    name: iOS — build, unit, snapshot and UI tests
+    runs-on: macos-15
+
+    steps:
+      - uses: actions/checkout@v4
+
+      # The image carries Xcode 26 as versioned bundles (Xcode_26.3.app,
+      # Xcode_26.2.app, ...) — there is no bare Xcode_26.app, which is why
+      # the first run failed here. Take the newest 26.x present rather than
+      # pinning a point release the image will rotate out.
+      - name: Select Xcode
+        run: |
+          xcode=$(ls -d /Applications/Xcode_26*.app | sort -V | tail -1)
+          sudo xcode-select -s "$xcode"
+          xcodebuild -version
+
+      # FyndraCore is platform-agnostic and tests far faster on its own
+      # than through a simulator, so it gets its own step and fails early.
+      - name: FyndraCore tests
+        working-directory: ios/FyndraCore
+        run: swift test
+
+      - name: SwiftLint
+        working-directory: ios
+        run: |
+          brew install swiftlint
+          swiftlint lint --strict
+
+      - name: App tests (unit, layout snapshot, UI)
+        working-directory: ios/fyndra
+        run: |
+          xcodebuild test \
+            -project fyndra.xcodeproj \
+            -scheme fyndra \
+            -destination 'platform=iOS Simulator,name=iPhone 17' \
+            CODE_SIGNING_ALLOWED=NO
+        # DemoWalkthroughUITests skips itself here: it needs a live API,
+        # a worker and a seeded account, which the `api` job's services do
+        # not reach across runners. It is the local/manual validation step.

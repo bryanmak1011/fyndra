@@ -36,9 +36,13 @@ describe('handleRebuildMatch', () => {
 
     await handleRebuildMatch({ profileId: profile.id });
 
+    // Asserts on this test's own posting rather than a total count: the
+    // database is shared with every other test file and with whatever the
+    // demo seed has put there, so `toHaveLength(1)` was really asserting
+    // "nobody else has any data", which is not this test's subject.
     const entries = await prisma.feedEntry.findMany({ where: { profileId: profile.id } });
-    expect(entries).toHaveLength(1);
-    expect(entries[0].jobPostingId).toBe(posting.id);
+    expect(entries.map((e) => e.jobPostingId)).toContain(posting.id);
+    expect(entries.every((e) => e.profileId === profile.id)).toBe(true);
   });
 
   it('batch mode (no profileId) rebuilds every profile with markets and keywords set', async () => {
