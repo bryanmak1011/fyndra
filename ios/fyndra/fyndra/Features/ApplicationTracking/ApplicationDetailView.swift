@@ -25,7 +25,11 @@ struct ApplicationDetailView: View {
             case .loading:
                 ProgressView { Text("Loading…") }.frame(maxWidth: .infinity, maxHeight: .infinity)
             case .empty:
-                StatusPlaceholder(systemImage: "tray", title: "No applications yet", message: "Swipe right on a job and it will show up here.")
+                StatusPlaceholder(
+                    systemImage: "tray",
+                    title: "No applications yet",
+                    message: "Swipe right on a job and it will show up here."
+                )
             case .failed(let message):
                 StatusPlaceholder(
                     systemImage: "exclamationmark.triangle",
@@ -261,6 +265,9 @@ struct PendingQuestionRow: View {
                     Label("Only you can answer this", systemImage: "hand.raised.fill")
                         .font(Tokens.Typography.caption.weight(.semibold))
                         .foregroundStyle(Tokens.Palette.attention)
+                    // The literal is the String Catalog key, so it cannot be
+                    // wrapped or split without orphaning the zh-Hant entry.
+                    // swiftlint:disable:next line_length
                     Text("This asks about work authorisation, visa status, an identity number, expected salary, or personal characteristics. Fyndra never answers these for you, and never reuses your answer on another application.")
                         .font(Tokens.Typography.caption)
                         .foregroundStyle(Tokens.Palette.secondaryText)

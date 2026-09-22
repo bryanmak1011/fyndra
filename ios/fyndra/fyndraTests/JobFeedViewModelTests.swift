@@ -20,25 +20,25 @@ struct JobFeedViewModelTests {
         #expect(model.exhausted)
     }
 
-    @Test func aSwipeRemovesTheCardImmediatelyWithoutAwaitingTheServer() async {
+    @Test func aSwipeRemovesTheCardImmediatelyWithoutAwaitingTheServer() async throws {
         // The API never returns: if the deck waited on it, the card would
         // still be showing after the swipe.
         let api = ScriptedAPI(feedPages: [page(ids: ["a", "b"], exhausted: true)], hangsOnSwipe: true)
         let model = JobFeedViewModel(session: AppSession(api: api))
         await model.load()
 
-        model.swipe(model.topCard!, direction: .left)
+        model.swipe(try #require(model.topCard), direction: .left)
 
         #expect(model.topCard?.id == "b")
         #expect(model.cards.count == 1)
     }
 
-    @Test func showsTheEndOfFeedStateOnlyWhenTheDeckIsActuallyEmpty() async {
+    @Test func showsTheEndOfFeedStateOnlyWhenTheDeckIsActuallyEmpty() async throws {
         let api = ScriptedAPI(feedPages: [page(ids: ["a"], exhausted: true)])
         let model = JobFeedViewModel(session: AppSession(api: api))
         await model.load()
 
-        model.swipe(model.topCard!, direction: .left)
+        model.swipe(try #require(model.topCard), direction: .left)
 
         if case .empty = model.state {} else {
             Issue.record("expected the empty state once the last card is gone, got \(model.state)")
@@ -46,42 +46,42 @@ struct JobFeedViewModelTests {
         #expect(model.exhausted)
     }
 
-    @Test func refillsBeforeTheDeckRunsDry() async {
+    @Test func refillsBeforeTheDeckRunsDry() async throws {
         // Five cards, then a second page. The threshold is four, so the
         // refill must fire on the second swipe (five down to four), not
         // when the deck empties.
         let api = ScriptedAPI(feedPages: [
             page(ids: ["a", "b", "c", "d", "e"], exhausted: false),
-            page(ids: ["f", "g"], exhausted: true),
+            page(ids: ["f", "g"], exhausted: true)
         ])
         let model = JobFeedViewModel(session: AppSession(api: api))
         await model.load()
         #expect(await api.feedCallCount == 1)
 
-        model.swipe(model.topCard!, direction: .left)
+        model.swipe(try #require(model.topCard), direction: .left)
         await settle()
 
         #expect(await api.feedCallCount == 2)
         #expect(model.cards.map(\.id) == ["b", "c", "d", "e", "f", "g"])
     }
 
-    @Test func aRefilledPageNeverReintroducesACardTheUserJustSwiped() async {
+    @Test func aRefilledPageNeverReintroducesACardTheUserJustSwiped() async throws {
         // The server filters swiped jobs, but a page already in flight when
         // the swipe happened can still contain it.
         let api = ScriptedAPI(feedPages: [
             page(ids: ["a", "b"], exhausted: false),
-            page(ids: ["b", "c"], exhausted: true),
+            page(ids: ["b", "c"], exhausted: true)
         ])
         let model = JobFeedViewModel(session: AppSession(api: api))
         await model.load()
 
-        model.swipe(model.topCard!, direction: .left)
+        model.swipe(try #require(model.topCard), direction: .left)
         await settle()
 
         #expect(model.cards.map(\.id) == ["b", "c"])
     }
 
-    @Test func aRejectedSwipeIsSurfacedRatherThanSwallowed() async {
+    @Test func aRejectedSwipeIsSurfacedRatherThanSwallowed() async throws {
         // A spent daily cap comes back as a 409; dropping it silently would
         // look like the app ignored the swipe.
         let api = ScriptedAPI(
@@ -94,18 +94,18 @@ struct JobFeedViewModelTests {
         let model = JobFeedViewModel(session: AppSession(api: api))
         await model.load()
 
-        model.swipe(model.topCard!, direction: .right)
+        model.swipe(try #require(model.topCard), direction: .right)
         await settle()
 
         #expect(model.swipeRejection == "Daily or per-employer submission cap reached")
     }
 
-    @Test func aFailedRefillKeepsTheCardsAlreadyInHand() async {
+    @Test func aFailedRefillKeepsTheCardsAlreadyInHand() async throws {
         let api = ScriptedAPI(feedPages: [page(ids: ["a", "b", "c"], exhausted: false)], failSubsequentFeeds: true)
         let model = JobFeedViewModel(session: AppSession(api: api))
         await model.load()
 
-        model.swipe(model.topCard!, direction: .left)
+        model.swipe(try #require(model.topCard), direction: .left)
         await settle()
 
         #expect(model.cards.map(\.id) == ["b", "c"])

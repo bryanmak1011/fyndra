@@ -21,7 +21,7 @@ public enum ApplicationStatus: String, Codable, Sendable, CaseIterable {
     /// server is the authority (it re-validates every transition); this
     /// exists so the UI never offers a control that can only 409.
     public static let userReportable: [ApplicationStatus] = [
-        .responded, .interview, .offer, .hired, .rejected, .withdrawn,
+        .responded, .interview, .offer, .hired, .rejected, .withdrawn
     ]
 
     /// Nothing follows a terminal state, so the detail screen hides its
@@ -164,20 +164,20 @@ public struct Application: Codable, Sendable, Equatable, Identifiable {
     /// `answerSheet`/`pendingQuestions` are absent from some server
     /// responses (the swipe result, for one) rather than empty arrays.
     public init(from decoder: Decoder) throws {
-        let c = try decoder.container(keyedBy: CodingKeys.self)
-        id = try c.decode(String.self, forKey: .id)
-        jobPostingId = try c.decodeIfPresent(String.self, forKey: .jobPostingId)
-        jobTitle = try c.decodeIfPresent(String.self, forKey: .jobTitle)
-        employer = try c.decodeIfPresent(String.self, forKey: .employer)
-        submissionMode = try c.decode(SubmissionMode.self, forKey: .submissionMode)
-        applyRoute = try c.decode(ApplyRoute.self, forKey: .applyRoute)
-        status = try c.decode(ApplicationStatus.self, forKey: .status)
-        failureReason = try c.decodeIfPresent(String.self, forKey: .failureReason)
-        lastAttemptRef = try c.decodeIfPresent(String.self, forKey: .lastAttemptRef)
-        employerApplyUrl = try c.decodeIfPresent(String.self, forKey: .employerApplyUrl)
-        submittedAt = try c.decodeIfPresent(Date.self, forKey: .submittedAt)
-        answerSheet = try c.decodeIfPresent([ProposedAnswer].self, forKey: .answerSheet) ?? []
-        pendingQuestions = try c.decodeIfPresent([ApplicationQuestion].self, forKey: .pendingQuestions) ?? []
+        let container = try decoder.container(keyedBy: CodingKeys.self)
+        id = try container.decode(String.self, forKey: .id)
+        jobPostingId = try container.decodeIfPresent(String.self, forKey: .jobPostingId)
+        jobTitle = try container.decodeIfPresent(String.self, forKey: .jobTitle)
+        employer = try container.decodeIfPresent(String.self, forKey: .employer)
+        submissionMode = try container.decode(SubmissionMode.self, forKey: .submissionMode)
+        applyRoute = try container.decode(ApplyRoute.self, forKey: .applyRoute)
+        status = try container.decode(ApplicationStatus.self, forKey: .status)
+        failureReason = try container.decodeIfPresent(String.self, forKey: .failureReason)
+        lastAttemptRef = try container.decodeIfPresent(String.self, forKey: .lastAttemptRef)
+        employerApplyUrl = try container.decodeIfPresent(String.self, forKey: .employerApplyUrl)
+        submittedAt = try container.decodeIfPresent(Date.self, forKey: .submittedAt)
+        answerSheet = try container.decodeIfPresent([ProposedAnswer].self, forKey: .answerSheet) ?? []
+        pendingQuestions = try container.decodeIfPresent([ApplicationQuestion].self, forKey: .pendingQuestions) ?? []
     }
 }
 
@@ -201,13 +201,13 @@ public struct ApplicationDetail: Codable, Sendable, Equatable, Identifiable {
 
     public init(from decoder: Decoder) throws {
         application = try Application(from: decoder)
-        let c = try decoder.container(keyedBy: CodingKeys.self)
-        statusHistory = try c.decodeIfPresent([ApplicationStatusEvent].self, forKey: .statusHistory) ?? []
+        let container = try decoder.container(keyedBy: CodingKeys.self)
+        statusHistory = try container.decodeIfPresent([ApplicationStatusEvent].self, forKey: .statusHistory) ?? []
     }
 
     public func encode(to encoder: Encoder) throws {
         try application.encode(to: encoder)
-        var c = encoder.container(keyedBy: CodingKeys.self)
-        try c.encode(statusHistory, forKey: .statusHistory)
+        var container = encoder.container(keyedBy: CodingKeys.self)
+        try container.encode(statusHistory, forKey: .statusHistory)
     }
 }

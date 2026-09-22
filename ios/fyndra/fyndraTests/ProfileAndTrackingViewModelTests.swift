@@ -90,7 +90,7 @@ struct TrackingViewModelTests {
             application(id: "1", status: .awaitingReview),
             application(id: "2", status: .pendingNeedsAnswer),
             application(id: "3", status: .applied),
-            application(id: "4", status: .hired),
+            application(id: "4", status: .hired)
         ])
         let model = TrackingViewModel(session: AppSession(api: api))
 
@@ -113,7 +113,7 @@ struct TrackingViewModelTests {
         let api = ScriptedAPI()
         await api.setApplications([
             application(id: "1", status: .awaitingReview),
-            application(id: "2", status: .applied),
+            application(id: "2", status: .applied)
         ])
         let model = TrackingViewModel(session: AppSession(api: api))
         await model.load()

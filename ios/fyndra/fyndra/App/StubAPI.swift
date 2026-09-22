@@ -28,7 +28,9 @@ actor StubAPI: FyndraAPI {
             sourceProvider: "jobsdb-hk",
             title: "Senior Backend Engineer",
             employer: "Octopus Cards Limited",
-            requirementsSummary: "Design and operate payment services in TypeScript and Go. 5+ years building distributed systems, strong PostgreSQL, Kubernetes on AWS.",
+            requirementsSummary:
+                "Design and operate payment services in TypeScript and Go. 5+ years building distributed systems, "
+                + "strong PostgreSQL, Kubernetes on AWS.",
             language: .en,
             market: .hongKong,
             applyRoute: .handoff,
@@ -55,7 +57,7 @@ actor StubAPI: FyndraAPI {
             market: .hongKong,
             applyRoute: .handoff,
             matchScore: 0.44
-        ),
+        )
     ]
 
     private var applications: [Application] = []
@@ -135,17 +137,22 @@ actor StubAPI: FyndraAPI {
             status: .awaitingReview,
             employerApplyUrl: "https://example.test/apply/\(jobId)",
             answerSheet: [
-                ProposedAnswer(fieldId: "why", label: "Why this role?", answer: "Five years on payment-scale backends in TypeScript and Go.", source: .generated),
-                ProposedAnswer(fieldId: "email", label: "Email", answer: profile.email, source: .profile),
+                ProposedAnswer(
+                    fieldId: "why",
+                    label: "Why this role?",
+                    answer: "Five years on payment-scale backends in TypeScript and Go.",
+                    source: .generated
+                ),
+                ProposedAnswer(fieldId: "email", label: "Email", answer: profile.email, source: .profile)
             ],
             pendingQuestions: [
-                ApplicationQuestion(id: "q-\(jobId)", questionText: "期望薪資 (Expected salary)", isSensitive: true),
+                ApplicationQuestion(id: "q-\(jobId)", questionText: "期望薪資 (Expected salary)", isSensitive: true)
             ]
         )
         applications.insert(application, at: 0)
         histories[application.id] = [
             ApplicationStatusEvent(status: .queued, occurredAt: .now.addingTimeInterval(-60)),
-            ApplicationStatusEvent(status: .awaitingReview, occurredAt: .now),
+            ApplicationStatusEvent(status: .awaitingReview, occurredAt: .now)
         ]
         profile = UserProfile(
             id: profile.id, email: profile.email, yoe: profile.yoe, keywords: profile.keywords,
@@ -184,7 +191,11 @@ actor StubAPI: FyndraAPI {
             throw APIClientError.server(status: 404, body: APIErrorBody(code: "not_found", message: "No such application"))
         }
         let existing = applications[index]
-        applications[index] = rebuild(existing, status: existing.status, questions: existing.pendingQuestions.filter { $0.id != questionId })
+        applications[index] = rebuild(
+            existing,
+            status: existing.status,
+            questions: existing.pendingQuestions.filter { $0.id != questionId }
+        )
         return applications[index]
     }
 

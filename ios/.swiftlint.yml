@@ -2,10 +2,10 @@
 # cyclomatic-complexity limit of 10, matching `complexity: ['error', 10]`
 # in api/eslint.config.js — the same rule on both sides of the product.
 #
-# Not yet run in anger: SwiftLint is not installed in the development
-# environment this was authored in, so this config is exercised for the
-# first time by the `ios` CI job (.github/workflows/ci.yml). Treat the
-# first CI run as its verification.
+# First run in anger was CI on PR #1 (2026-09-22), which found 40
+# violations. Note that the `ios` job runs `--strict`, so a `warning`
+# severity below still fails the build — the tiers express how bad a thing
+# is, not whether it blocks.
 included:
   - fyndra/fyndra
   - FyndraCore/Sources
@@ -35,7 +35,14 @@ line_length:
   ignores_comments: true
 
 identifier_name:
-  excluded: [id, x, n]
+  # The three-character minimum is right in general and wrong for these.
+  # Renaming any of them would make the code worse, not clearer:
+  #   xs/sm/md/lg/xl  the spacing scale in DesignTokens — a conventional
+  #                   ramp that reads as one unit at the call site
+  #   en              AppLanguage's case, which IS the API's wire value
+  #   cv              the product's core noun; "curriculumVitae" is nobody's
+  #                   name for the thing, and the API calls it cv throughout
+  excluded: [id, x, n, xs, sm, md, lg, xl, en, cv]
 
 disabled_rules:
   # Views read better with trailing-closure-heavy call chains than the

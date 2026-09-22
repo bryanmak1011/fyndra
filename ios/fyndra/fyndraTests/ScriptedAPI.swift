@@ -14,7 +14,16 @@ actor ScriptedAPI: FyndraAPI {
     private(set) var feedCallCount = 0
     private(set) var swipes: [(jobId: String, direction: SwipeDirection)] = []
     private(set) var profileUpdates: [UserProfileUpdate] = []
-    private(set) var answeredQuestions: [(questionId: String, answer: String, allowReuse: Bool)] = []
+    /// A named type rather than a 3-tuple: the assertions below read it by
+    /// field, and a tuple that wide stops being self-describing at the call
+    /// site.
+    struct AnsweredQuestion: Equatable {
+        let questionId: String
+        let answer: String
+        let allowReuse: Bool
+    }
+
+    private(set) var answeredQuestions: [AnsweredQuestion] = []
 
     var profile = UserProfile(
         id: "p1",
@@ -142,7 +151,7 @@ actor ScriptedAPI: FyndraAPI {
     }
 
     func answerQuestion(applicationId: String, questionId: String, answer: String, allowReuse: Bool) async throws -> Application {
-        answeredQuestions.append((questionId, answer, allowReuse))
+        answeredQuestions.append(AnsweredQuestion(questionId: questionId, answer: answer, allowReuse: allowReuse))
         guard let application = applicationDetail?.application else { throw notFound }
         return application
     }

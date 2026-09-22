@@ -73,7 +73,8 @@ struct JobFeedView: View {
         StatusPlaceholder(
             systemImage: model.exhausted ? "checkmark.circle" : "arrow.clockwise",
             title: "No more matches",
-            message: "You have seen every job that matches your profile right now. Broaden your criteria, or check back after the next crawl.",
+            message:
+                "You have seen every job that matches your profile right now. Broaden your criteria, or check back after the next crawl.",
             actionTitle: model.exhausted ? "Broaden my criteria" : "Reload feed",
             action: { Task { await model.load() } }
         )
