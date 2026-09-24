@@ -44,8 +44,7 @@ export const config = {
   port: Number(process.env.PORT ?? 3000),
   nodeEnv: process.env.NODE_ENV ?? 'development',
   databaseUrl: required('DATABASE_URL'),
-  llmProvider: process.env.LLM_PROVIDER ?? 'gemini',
-  geminiApiKey: process.env.GEMINI_API_KEY ?? '',
+  // One OpenAI-compatible endpoint, selected by base URL (see llm/client.ts).
   openaiApiKey: process.env.OPENAI_API_KEY ?? '',
   openaiBaseUrl: process.env.OPENAI_BASE_URL ?? '',
   llmModel: process.env.LLM_MODEL ?? '',

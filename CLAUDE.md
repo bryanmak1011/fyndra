@@ -35,8 +35,8 @@ implementation that needed a product decision rather than a guess.
 reference only** — read for provider reconnaissance and scraping-ethics
 doctrine, never executed. Engineering quality standards are in
 `.specify/memory/constitution.md`, read it before making any technical
-decision (note: it currently only covers the iOS side — extending it to the
-backend is tracked as tasks.md T092).
+decision — it governs both the iOS client (§I–V) and the backend
+(§VI Backend Engineering Standards).
 
 ## Team Model: Agents + Orchestrator
 
@@ -128,7 +128,7 @@ Trigger an agent by naming the role in your request, or let Claude pick the righ
 
 | Path | Purpose |
 |------|---------|
-| `.specify/memory/constitution.md` | Non-negotiable quality principles (currently iOS-only, see T092) |
+| `.specify/memory/constitution.md` | Non-negotiable quality principles — iOS (§I–V) and backend (§VI) |
 | `specs/001-job-swipe-apply/tasks.md` | Authoritative task list and build-status log |
 | `specs/001-job-swipe-apply/BLOCKERS.md` | Open questions needing a user decision |
 | `specs/001-job-swipe-apply/SDD.md` | Software design document — architecture, risks, invariants |

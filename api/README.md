@@ -133,8 +133,7 @@ Firecrawl integration for JS-gated sources (T087).
 - **No dotenv dependency** — `server.ts`/`worker.ts` use Node's native
   `process.loadEnvFile()` (Node ≥20.6).
 - **LLM access is via OpenRouter** (OpenAI-compatible), configured through
-  `LLM_PROVIDER=openai-compatible` / `OPENAI_BASE_URL` / `LLM_MODEL` in
-  `.env`. Free-tier reasoning models are slow and can hit shared-pool
+  `OPENAI_BASE_URL` / `OPENAI_API_KEY` / `LLM_MODEL` in `.env`. Free-tier reasoning models are slow and can hit shared-pool
   capacity limits (`"Worker local total request limit reached"`), returned
   as HTTP 200 with an error payload rather than a normal failure —
   `src/llm/client.ts` detects and surfaces this explicitly rather than

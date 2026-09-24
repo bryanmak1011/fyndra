@@ -2,7 +2,22 @@
 // the intelligence comes from". Any OpenAI-compatible endpoint works
 // (OpenRouter, OpenAI itself, a local vLLM/Ollama), selected by base URL.
 export interface LlmClient {
-  complete(prompt: string): Promise<string>;
+  complete(prompt: string, options?: CompleteOptions): Promise<string>;
+}
+
+export interface CompleteOptions {
+  /**
+   * A JSON Schema the provider constrains the response to, sent as the
+   * OpenAI-compatible `response_format: {type: 'json_schema', strict: true}`.
+   *
+   * This replaces telling the model "reply with ONLY JSON, no fences" in
+   * prose — an instruction that demonstrably does not hold (see
+   * tests/unit/cv-interpret.test.ts's fenced-output case). It is a hint, not
+   * a guarantee: OpenRouter free-tier models vary in whether they honour
+   * `response_format`, and a provider that ignores it returns exactly what
+   * it returned before. Callers therefore keep their defensive parse.
+   */
+  jsonSchema?: { name: string; schema: Record<string, unknown> };
 }
 
 export interface LlmConfig {
@@ -73,7 +88,7 @@ export function createOpenAiCompatibleClient(config: LlmConfig): LlmClient {
   const maxAttempts = Math.max(1, config.maxAttempts ?? 5);
   const baseDelay = config.retryBaseDelayMs ?? 2_000;
 
-  async function attempt(prompt: string): Promise<string> {
+  async function attempt(prompt: string, options?: CompleteOptions): Promise<string> {
     const response = await fetch(`${config.baseUrl}/chat/completions`, {
       method: 'POST',
       headers: {
@@ -83,6 +98,14 @@ export function createOpenAiCompatibleClient(config: LlmConfig): LlmClient {
       body: JSON.stringify({
         model: config.model,
         messages: [{ role: 'user', content: prompt }],
+        ...(options?.jsonSchema
+          ? {
+              response_format: {
+                type: 'json_schema',
+                json_schema: { ...options.jsonSchema, strict: true },
+              },
+            }
+          : {}),
       }),
     });
 
@@ -119,11 +142,11 @@ export function createOpenAiCompatibleClient(config: LlmConfig): LlmClient {
   }
 
   return {
-    async complete(prompt: string): Promise<string> {
+    async complete(prompt: string, options?: CompleteOptions): Promise<string> {
       let lastError: unknown;
       for (let n = 1; n <= maxAttempts; n++) {
         try {
-          return await attempt(prompt);
+          return await attempt(prompt, options);
         } catch (error) {
           lastError = error;
           // A transport-level throw (socket reset, DNS blip) is transient by

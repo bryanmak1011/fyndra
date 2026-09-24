@@ -10,7 +10,7 @@ entity detail and [contracts/openapi.yaml](./contracts/openapi.yaml) for the ful
 - **Node.js 22 LTS** + npm
 - A PDF text extractor available in the API image (`pdftotext`) — DOCX is read in-process
 - `ngrok` CLI authenticated (only needed for physical-device testing)
-- An LLM API key (`GEMINI_API_KEY` or an OpenAI-compatible `OPENAI_API_KEY` + `OPENAI_BASE_URL`) —
+- An OpenAI-compatible LLM API key (`OPENAI_API_KEY` + `OPENAI_BASE_URL` + `LLM_MODEL`) —
   required for CV keyword/YoE interpretation and answer drafting
 - Optional: `FIRECRAWL_API_KEY`, only needed once a JS-gated Taiwan source is onboarded
 

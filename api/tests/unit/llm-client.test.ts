@@ -39,6 +39,26 @@ describe('createOpenAiCompatibleClient', () => {
     });
   });
 
+  it('sends response_format when a caller supplies a JSON schema, and omits it otherwise', async () => {
+    let capturedBody: Record<string, unknown> = {};
+    global.fetch = (async (_input: RequestInfo | URL, init?: RequestInit) => {
+      capturedBody = JSON.parse(init!.body as string);
+      return new Response(JSON.stringify({ choices: [{ message: { content: '{}' } }] }), { status: 200 });
+    }) as typeof fetch;
+
+    const client = createOpenAiCompatibleClient(config);
+    const schema = { name: 'thing', schema: { type: 'object', properties: {} } };
+    await client.complete('a prompt', { jsonSchema: schema });
+
+    expect(capturedBody.response_format).toEqual({
+      type: 'json_schema',
+      json_schema: { ...schema, strict: true },
+    });
+
+    await client.complete('a prompt');
+    expect(capturedBody).not.toHaveProperty('response_format');
+  });
+
   it('throws LlmResponseError on a non-2xx HTTP response', async () => {
     global.fetch = (async () => new Response('rate limited', { status: 429 })) as typeof fetch;
     const client = createOpenAiCompatibleClient(config);
